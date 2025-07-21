@@ -1,6 +1,6 @@
 'use client';
 
-import { CircleUser, Loader2, LogOut, ReceiptText, Settings, Target, Star } from 'lucide-react';
+import { CircleUser, Loader2, LogOut, ReceiptText, Settings, Target, Star, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -57,7 +57,10 @@ export function Header() {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                      <DropdownMenuItem asChild>
-                      <Link href="/dashboard">Dashboard</Link>
+                      <Link href="/dashboard">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        <span>Dashboard</span>
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/dashboard/budgets">
