@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { processReceipt } from "@/lib/actions"
 import { cn } from "@/lib/utils"
 import { type Expense, type ExpenseFormData, expenseFormSchema, type ProcessedReceiptData } from "@/types"
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ExpenseFormProps {
     onSubmit: (expense: ExpenseFormData) => void;
@@ -24,6 +25,7 @@ interface ExpenseFormProps {
 const DEFAULT_CURRENCY = "USD";
 
 export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseFormProps) {
+    const isMobile = useIsMobile();
     const [isProcessing, setIsProcessing] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [processedData, setProcessedData] = useState<ProcessedReceiptData | null>(null);
@@ -196,7 +198,7 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
     const ExpenseFields = () => (
         <div className="space-y-4 animate-in fade-in duration-500">
             {previewUrl && (
-                <div className="relative w-full h-40 rounded-lg overflow-hidden border bg-muted/20">
+                <div className="relative w-full h-32 sm:h-40 rounded-lg overflow-hidden border bg-muted/20">
                     <Image src={previewUrl} alt="Receipt preview" layout="fill" objectFit="contain" />
                     <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7 rounded-full shadow-md" onClick={() => resetForm()}>
                         <X className="h-4 w-4"/>
@@ -206,7 +208,7 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
             )}
             
             {/* Basic Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="vendorName">Vendor Name *</Label>
                     <Input 
@@ -232,7 +234,7 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
             </div>
 
             {/* Date and Time */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="date">Date *</Label>
                     <div className="relative">
@@ -261,34 +263,7 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
             </div>
 
             {/* Amount Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                    <Label htmlFor="subtotal">Subtotal</Label>
-                    <div className="relative">
-                        <Receipt className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            id="subtotal" 
-                            type="number" 
-                            step="0.01"
-                            className="pl-9"
-                            {...form.register("subtotal", { valueAsNumber: true })}
-                            placeholder="0.00"
-                        />
-                    </div>
-                </div>
-                <div className="space-y-1.5">
-                    <Label htmlFor="taxes">Tax</Label>
-                    <Input 
-                        id="taxes" 
-                        type="number" 
-                        step="0.01"
-                        {...form.register("taxes", { valueAsNumber: true })}
-                        placeholder="0.00"
-                    />
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="totalAmount">Total Amount *</Label>
                     <div className="relative">
@@ -304,6 +279,35 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
                         )}
                     </div>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="subtotal">Subtotal</Label>
+                        <div className="relative">
+                            <Receipt className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                id="subtotal" 
+                                type="number" 
+                                step="0.01"
+                                className="pl-9"
+                                {...form.register("subtotal", { valueAsNumber: true })}
+                                placeholder="0.00"
+                            />
+                        </div>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="taxes">Tax</Label>
+                        <Input 
+                            id="taxes" 
+                            type="number" 
+                            step="0.01"
+                            {...form.register("taxes", { valueAsNumber: true })}
+                            placeholder="0.00"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="currency">Currency</Label>
                     <Input 
@@ -313,19 +317,17 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
                         maxLength={3}
                     />
                 </div>
-            </div>
-
-            {/* Payment Method */}
-            <div className="space-y-1.5">
-                <Label htmlFor="paymentMethod">Payment Method</Label>
-                <div className="relative">
-                    <CreditCard className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                        id="paymentMethod" 
-                        className="pl-9"
-                        {...form.register("paymentMethod")}
-                        placeholder="e.g., Credit Card, Cash"
-                    />
+                <div className="space-y-1.5">
+                    <Label htmlFor="paymentMethod">Payment Method</Label>
+                    <div className="relative">
+                        <CreditCard className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            id="paymentMethod" 
+                            className="pl-9"
+                            {...form.register("paymentMethod")}
+                            placeholder="e.g., Credit Card"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -337,29 +339,29 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
     );
 
     return (
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 pt-4">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <Tabs defaultValue="upload" className="w-full" onValueChange={handleTabChange}>
-                <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="upload">Upload File</TabsTrigger>
-                    <TabsTrigger value="camera">Scan Receipt</TabsTrigger>
-                    <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+                <TabsList className={cn("grid w-full", isMobile ? "grid-cols-2" : "grid-cols-3")}>
+                    <TabsTrigger value="upload" className="text-sm">Upload File</TabsTrigger>
+                    {!isMobile && <TabsTrigger value="camera" className="text-sm">Scan Receipt</TabsTrigger>}
+                    <TabsTrigger value="manual" className="text-sm">Manual Entry</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="upload">
                     {!processedData ? (
                         <div className="relative mt-4">
                             <Label htmlFor="receipt-upload" className={cn(
-                                "flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
+                                "flex flex-col items-center justify-center w-full h-48 sm:h-64 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
                                 isProcessing && "cursor-wait bg-muted/50"
                             )}>
                                 {isProcessing ? (
                                     <>
-                                        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                                        <Loader2 className="h-8 w-8 sm:h-10 sm:w-10 animate-spin text-primary" />
                                         <p className="mt-4 text-sm text-muted-foreground">Analyzing your receipt...</p>
                                     </>
                                 ) : (
                                     <>
-                                        <UploadCloud className="h-10 w-10 text-muted-foreground" />
+                                        <UploadCloud className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground" />
                                         <p className="mt-4 text-sm text-muted-foreground">
                                             <span className="font-semibold text-primary">Click to upload</span> or drag and drop
                                         </p>
@@ -374,42 +376,44 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
                     )}
                 </TabsContent>
 
-                <TabsContent value="camera">
-                    {!processedData ? (
-                        <div className="mt-4 space-y-4">
-                            <div className="w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center aspect-video">
-                                <video ref={videoRef} className={cn("w-full h-full object-cover", { 'hidden': hasCameraPermission !== true })} autoPlay muted playsInline />
-                                {hasCameraPermission === false && (
-                                     <div className="p-4">
-                                        <Alert variant="destructive">
-                                            <AlertTitle>Camera Access Required</AlertTitle>
-                                            <AlertDescription>
-                                                Please allow camera access in your browser to use this feature. You may need to refresh the page.
-                                            </AlertDescription>
-                                        </Alert>
-                                     </div>
-                                )}
-                                {hasCameraPermission === undefined && !isProcessing && (
-                                    <div className="flex flex-col items-center gap-2">
-                                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                                        <p className="text-muted-foreground">Requesting camera...</p>
-                                    </div>
-                                )}
+                {!isMobile && (
+                    <TabsContent value="camera">
+                        {!processedData ? (
+                            <div className="mt-4 space-y-4">
+                                <div className="w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center aspect-video">
+                                    <video ref={videoRef} className={cn("w-full h-full object-cover", { 'hidden': hasCameraPermission !== true })} autoPlay muted playsInline />
+                                    {hasCameraPermission === false && (
+                                         <div className="p-4">
+                                            <Alert variant="destructive">
+                                                <AlertTitle>Camera Access Required</AlertTitle>
+                                                <AlertDescription>
+                                                    Please allow camera access in your browser to use this feature. You may need to refresh the page.
+                                                </AlertDescription>
+                                            </Alert>
+                                         </div>
+                                    )}
+                                    {hasCameraPermission === undefined && !isProcessing && (
+                                        <div className="flex flex-col items-center gap-2">
+                                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                            <p className="text-muted-foreground">Requesting camera...</p>
+                                        </div>
+                                    )}
+                                </div>
+                                <Button type="button" className="w-full" onClick={handleCapture} disabled={!hasCameraPermission || isProcessing}>
+                                    <Camera className="mr-2 h-4 w-4" />
+                                    {isProcessing ? 'Capturing...' : 'Capture Photo'}
+                                </Button>
+                                <canvas ref={canvasRef} className="hidden"></canvas>
                             </div>
-                            <Button type="button" className="w-full" onClick={handleCapture} disabled={!hasCameraPermission || isProcessing}>
-                                <Camera className="mr-2 h-4 w-4" />
-                                {isProcessing ? 'Capturing...' : 'Capture Photo'}
-                            </Button>
-                            <canvas ref={canvasRef} className="hidden"></canvas>
-                        </div>
-                    ) : (
-                        <ExpenseFields />
-                    )}
-                </TabsContent>
+                        ) : (
+                            <ExpenseFields />
+                        )}
+                    </TabsContent>
+                )}
 
                 <TabsContent value="manual">
                     <div className="mt-4">
-                        <Alert className="mb-6">
+                        <Alert className="mb-4">
                             <PenLine className="h-4 w-4" />
                             <AlertTitle>Manual Entry</AlertTitle>
                             <AlertDescription>

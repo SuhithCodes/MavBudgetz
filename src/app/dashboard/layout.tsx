@@ -10,7 +10,9 @@ export default function DashboardLayout({
     <ProtectedRoute>
       <div className="flex min-h-screen w-full flex-col bg-background">
         <Header />
-        {children}
+        <div className="relative flex-1">
+          {children}
+        </div>
       </div>
     </ProtectedRoute>
   );

@@ -92,17 +92,17 @@ export function CategoryChart({ expenses }: CategoryChartProps) {
         <CardDescription>A visual breakdown of your expenses by category.</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={config} className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
+        <ChartContainer config={config} className="h-[300px] flex items-center justify-center">
+          <ResponsiveContainer width="100%" height="100%" className="max-w-[300px]">
+            <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
               <Pie
                 data={data}
                 dataKey="value"
                 nameKey="name"
                 cx="50%"
                 cy="50%"
-                innerRadius={60}
-                outerRadius={80}
+                innerRadius={50}
+                outerRadius={70}
                 paddingAngle={2}
               >
                 {data.map((entry, index) => (
@@ -141,7 +141,7 @@ export function CategoryChart({ expenses }: CategoryChartProps) {
               />
               <Legend
                 content={({ payload }) => (
-                  <div className="mt-4 flex flex-wrap justify-center gap-4">
+                  <div className="mt-6 flex flex-wrap justify-center gap-4">
                     {payload?.map((entry, index) => (
                       <div key={`legend-${index}`} className="flex items-center">
                         <div

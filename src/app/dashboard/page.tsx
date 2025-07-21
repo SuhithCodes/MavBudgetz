@@ -129,8 +129,8 @@ export default function DashboardPage() {
                             Add Expense
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
+                    <DialogContent className="max-h-[95vh] overflow-y-auto p-4 sm:p-6">
+                        <DialogHeader className="mb-4">
                             <DialogTitle>Add New Expense</DialogTitle>
                             <DialogDescription>
                                 Upload or scan a receipt to automatically extract expense details.
