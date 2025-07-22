@@ -6,14 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { type BudgetFormData, budgetFormSchema } from '@/types';
+import { type Budget, type BudgetFormData, budgetFormSchema } from '@/types';
 import { Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
 
 interface BudgetFormProps {
-    onBudgetAdded: (budget: BudgetFormData) => void;
+    onSubmit: (budget: BudgetFormData) => void;
+    initialData?: Budget;
 }
 
-export function BudgetForm({ onBudgetAdded }: BudgetFormProps) {
+export function BudgetForm({ onSubmit, initialData }: BudgetFormProps) {
     const form = useForm<BudgetFormData>({
         resolver: zodResolver(budgetFormSchema),
         defaultValues: {
@@ -24,13 +26,26 @@ export function BudgetForm({ onBudgetAdded }: BudgetFormProps) {
         },
     });
 
-    const onSubmit = (data: BudgetFormData) => {
-        onBudgetAdded(data);
-        form.reset();
+    useEffect(() => {
+        if (initialData) {
+            form.reset({
+                name: initialData.name,
+                category: initialData.category,
+                amount: initialData.amount,
+                period: initialData.period,
+            });
+        }
+    }, [initialData, form]);
+
+    const handleSubmit = (data: BudgetFormData) => {
+        onSubmit(data);
+        if (!initialData) {
+            form.reset(); // Only reset if we're creating a new budget
+        }
     };
 
     return (
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <div className="space-y-1.5">
                 <Label htmlFor="name">Budget Name</Label>
                 <Input id="name" {...form.register('name')} placeholder="e.g., Monthly Groceries" />
@@ -55,7 +70,7 @@ export function BudgetForm({ onBudgetAdded }: BudgetFormProps) {
                 </div>
                 <div className="space-y-1.5">
                     <Label htmlFor="period">Period</Label>
-                    <Select onValueChange={(value) => form.setValue('period', value as 'Weekly' | 'Monthly' | 'Yearly')} defaultValue={form.getValues('period')}>
+                    <Select onValueChange={(value) => form.setValue('period', value as 'Weekly' | 'Monthly' | 'Yearly')} value={form.watch('period')}>
                         <SelectTrigger>
                             <SelectValue placeholder="Select period" />
                         </SelectTrigger>
@@ -69,7 +84,7 @@ export function BudgetForm({ onBudgetAdded }: BudgetFormProps) {
             </div>
             <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                  {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Budget
+                {initialData ? 'Update Budget' : 'Save Budget'}
             </Button>
         </form>
     );

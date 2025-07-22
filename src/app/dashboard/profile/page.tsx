@@ -19,6 +19,13 @@ import { useState, useEffect } from "react";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { getExpenses } from '@/lib/actions/expenses';
+import { saveAs } from 'file-saver';
+import { getSavingsGoals } from '@/lib/actions/savings-goals';
+import { getBudgets } from '@/lib/actions/budgets';
+import { marked } from 'marked';
+import html2pdf from 'html2pdf.js';
+import { endOfMonth, startOfMonth, format as formatDate } from 'date-fns';
 
 
 interface UserPreferences {
@@ -62,17 +69,138 @@ export default function SettingsPage() {
         }
     };
 
+  // CSV export logic
+  const handleExportExpensesCSV = async () => {
+    if (!user) return;
+    const expenses = await getExpenses(user.uid);
+    if (expenses.length === 0) {
+      toast({ title: 'No Data', description: 'There are no expenses to export.', variant: 'destructive' });
+      return;
+    }
+    const headers = [
+      'id', 'vendorName', 'date', 'time', 'totalAmount', 'currency',
+      'category', 'subtotal', 'taxes', 'paymentMethod', 'lineItems', 'confidence'
+    ];
+    const escapeCSV = (value: any) => {
+      if (value === null || value === undefined) return '';
+      let str = String(value);
+      if (Array.isArray(value)) {
+        str = value.join('; ');
+      }
+      if (str.search(/("|,|\n)/g) >= 0) {
+        str = `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+    const csvRows = [headers.join(',')];
+    for (const expense of expenses) {
+      const values = headers.map(header => {
+        const key = header as keyof typeof expense;
+        return escapeCSV(expense[key]);
+      });
+      csvRows.push(values.join(','));
+    }
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, 'expenses.csv');
+    toast({ title: 'Export Successful', description: 'Your expenses have been downloaded as a CSV file.' });
+  };
+
+  // AI Summary Report logic
+  const handleSummaryReport = async () => {
+    if (!user) return;
+    const now = new Date();
+    const start = startOfMonth(now);
+    const end = endOfMonth(now);
+    const [expenses, goals, budgets] = await Promise.all([
+      getExpenses(user.uid),
+      getSavingsGoals(user.uid),
+      getBudgets(user.uid),
+    ]);
+    // Filter expenses for current month
+    const monthExpenses = expenses.filter(e => e.date >= formatDate(start, 'yyyy-MM-dd') && e.date <= formatDate(end, 'yyyy-MM-dd'));
+    // Beautified Markdown generation
+    let md = `# 📊 **Monthly Financial Summary**\n\n`;
+    md += `---\n`;
+    md += `**Period:** _${formatDate(start, 'MMM dd, yyyy')} - ${formatDate(end, 'MMM dd, yyyy')}_\n\n`;
+    const totalSpent = monthExpenses.reduce((sum, e) => sum + e.totalAmount, 0);
+    md += `> **Total spent this month:** $${totalSpent.toFixed(2)}\n`;
+    md += `\n---\n`;
+    md += `## 🧾 Expenses (${monthExpenses.length})\n`;
+    if (monthExpenses.length === 0) {
+      md += '_No expenses recorded this month._\n';
+    } else {
+      md += '\n| Date | Vendor | Category | Amount |\n|:---:|:---|:---|---:|\n';
+      for (const e of monthExpenses) {
+        md += `| ${e.date} | ${e.vendorName} | ${e.category} | **$${e.totalAmount.toFixed(2)}** |\n`;
+      }
+    }
+    md += '\n---\n';
+    md += `## 🎯 Savings Goals\n`;
+    if (goals.length === 0) {
+      md += '_No savings goals._\n';
+    } else {
+      md += '\n| Name | Target | Current | Progress |\n|:---|---:|---:|---:|\n';
+      for (const g of goals) {
+        const progress = g.targetAmount > 0 ? (g.currentAmount / g.targetAmount) * 100 : 0;
+        md += `| ${g.name} | $${g.targetAmount.toFixed(2)} | $${g.currentAmount.toFixed(2)} | ${progress.toFixed(1)}% |\n`;
+      }
+    }
+    md += '\n---\n';
+    md += `## 💰 Budgets\n`;
+    if (budgets.length === 0) {
+      md += '_No budgets._\n';
+    } else {
+      md += '\n| Name | Category | Amount | Period |\n|:---|:---|---:|:---:|\n';
+      for (const b of budgets) {
+        md += `| ${b.name} | ${b.category} | $${b.amount.toFixed(2)} | ${b.period} |\n`;
+      }
+    }
+    md += '\n---\n';
+    md += `## 📈 Analytics\n`;
+    md += `- **Total spent:** $${totalSpent.toFixed(2)}\n`;
+    md += `- **Number of transactions:** ${monthExpenses.length}\n`;
+    md += `- **Number of savings goals:** ${goals.length}\n`;
+    md += `- **Number of budgets:** ${budgets.length}\n`;
+    // Custom CSS for PDF styling
+    const customCSS = `
+      <style>
+        body { font-family: 'Alegreya', serif; color: #222; background: #fff; }
+        h1, h2, h3 { color: #D9A829; font-family: 'Alegreya', serif; }
+        h1 { font-size: 2.2em; margin-bottom: 0.2em; }
+        h2 { font-size: 1.4em; margin-top: 1.5em; margin-bottom: 0.5em; }
+        h3 { font-size: 1.1em; margin-top: 1em; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid #eee; padding: 0.5em 0.8em; text-align: left; }
+        th { background: #f5f4f0; color: #D97A29; font-weight: bold; }
+        tr:nth-child(even) { background: #faf8f3; }
+        tr:hover { background: #f5f4f0; }
+        .summary-box { background: #f5f4f0; border-left: 6px solid #D9A829; padding: 1em; margin-bottom: 1.5em; font-size: 1.1em; }
+        .section-divider { border: none; border-top: 2px solid #D9A829; margin: 2em 0 1em 0; }
+        .emoji { font-size: 1.3em; vertical-align: middle; margin-right: 0.3em; }
+        .analytics-list { margin: 0.5em 0 0 1em; }
+        .analytics-list li { margin-bottom: 0.2em; }
+      </style>
+    `;
+    // Convert markdown to HTML
+    const html = customCSS + marked.parse(md);
+    // Convert HTML to PDF and save
+    html2pdf().from(html).set({ filename: 'summary-report.pdf' }).save();
+    toast({ title: 'Summary Report Generated', description: 'Your summary report PDF is downloading.' });
+  };
+
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 container mx-auto">
       <h1 className="font-headline text-3xl font-semibold">Settings</h1>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full max-w-lg grid-cols-4 mb-6">
+        <TabsList className="grid w-full max-w-lg grid-cols-5 mb-6">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="password">Password</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
+          <TabsTrigger value="data">Data</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
@@ -175,6 +303,23 @@ export default function SettingsPage() {
 
         <TabsContent value="categories">
             <CategoryManager />
+        </TabsContent>
+
+        <TabsContent value="data">
+          <Card className="max-w-3xl">
+            <CardHeader>
+              <CardTitle>Data & Reports</CardTitle>
+              <CardDescription>Export your data or generate a monthly summary report.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Button variant="outline" className="w-full" onClick={handleExportExpensesCSV}>
+                Expenses Report (CSV)
+              </Button>
+              <Button className="w-full" onClick={handleSummaryReport}>
+                Summary Report (AI PDF)
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
 
       </Tabs>

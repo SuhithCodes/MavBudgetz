@@ -24,3 +24,28 @@
 - Use clear, minimalist icons for categories and actions, ensuring ease of understanding and a professional look.
 - Maintain a clean and structured layout, prioritizing readability and ease of navigation. Use white space effectively to avoid clutter.
 - Incorporate subtle animations for loading states and transitions to enhance the user experience without being distracting.
+
+
+# Tech Debt:
+
+### In-Depth Spending & Behavioral Analysis
+
+### Done
+- **Time-Based Analysis**: Use heatmaps or charts to show spending patterns based on the day of the week or time of day.
+- **Outlier Detection**: Automatically flag unusually large expenses in any category.
+- **Budget Pacing Alerts**: Proactively warn users if they are on track to exceed their budget for the month.
+- **Savings Goal Forecasting**: Project the completion date for savings goals based on the user's average savings rate.
+- **Automated Monthly Reports**: Automatically generate and send a detailed summary of the user's monthly financial activity, including insights and advice.
+
+# Future Features
+- **Spending Trends Over Time**: Visualize spending per category over several months to identify trends, lifestyle inflation, or seasonal habits.
+- **Vendor Deep Dive**: Analyze spending at specific merchants, including top vendors per category and visit frequency.
+### Predictive Analytics & Forecasting
+- **Cash Flow Forecasting**: Project future account balances based on historical income and spending.
+### Advanced Budgeting & Savings Insights
+- **Budget vs. Actuals Visualization**: Show a real-time chart comparing budgeted amounts to actual spending throughout the period.
+- **"What-If" Scenarios**: Allow users to simulate how changes in spending could impact their savings goals.
+- **Surplus Reallocation**: Suggest moving unspent money from budget categories directly into savings goals at the end of a period.
+### AI-Powered Features
+- **Smarter Categorization**: Use machine learning to improve automatic expense categorization based on user corrections.
+- **Natural Language Queries**: Enable users to ask questions about their finances in plain English (e.g., "How much did I spend on food last week?").

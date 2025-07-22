@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { FileDown, Pencil, Trash2 } from "lucide-react"
+import { FileDown, Pencil, Trash2, AlertTriangle } from "lucide-react"
 import {
   Accordion,
   AccordionContent,
@@ -127,6 +127,29 @@ export function ExpenseList({ expenses, showTitle = true, showExport = true, onE
     })
   };
 
+  // Outlier detection logic
+  const categoryStats = (() => {
+    const stats: Record<string, { mean: number; std: number }> = {};
+    const grouped: Record<string, number[]> = {};
+    for (const exp of expenses) {
+      if (!grouped[exp.category]) grouped[exp.category] = [];
+      grouped[exp.category].push(exp.totalAmount);
+    }
+    for (const cat in grouped) {
+      const arr = grouped[cat];
+      const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+      const std = Math.sqrt(arr.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / arr.length);
+      stats[cat] = { mean, std };
+    }
+    return stats;
+  })();
+
+  const isOutlier = (expense: Expense) => {
+    const stats = categoryStats[expense.category];
+    if (!stats || stats.std === 0) return false;
+    return expense.totalAmount > stats.mean + 2 * stats.std;
+  };
+
 
   return (
     <>
@@ -150,14 +173,22 @@ export function ExpenseList({ expenses, showTitle = true, showExport = true, onE
                 <Accordion type="single" collapsible className="w-full space-y-3">
                     {expenses.map((expense) => (
                     <AccordionItem value={expense.id} key={expense.id} className="border-b-0">
-                        <div className="rounded-md border px-4 transition-all hover:bg-muted/50">
+                        <div className={`rounded-md border px-4 transition-all hover:bg-muted/50 ${isOutlier(expense) ? 'border-yellow-500 bg-yellow-50' : ''}`}>
                         <AccordionTrigger className="py-0 hover:no-underline">
                             <div className="flex items-center gap-4 py-4 w-full">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
                                     <CategoryIcon category={expense.category} className="h-5 w-5 text-muted-foreground" />
                                 </div>
                                 <div className="grid gap-1 text-left">
-                                    <div className="font-semibold">{expense.vendorName}</div>
+                                    <div className="font-semibold flex items-center gap-2">
+                                        {expense.vendorName}
+                                        {isOutlier(expense) && (
+                                            <span className="inline-flex items-center text-yellow-700 text-xs font-bold ml-1">
+                                                <AlertTriangle className="h-4 w-4 mr-1 text-yellow-700" />
+                                                Outlier
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="text-sm text-muted-foreground">
                                         {new Date(expense.date + 'T00:00:00').toLocaleDateString('en-US', {
                                             year: 'numeric',

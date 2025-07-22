@@ -92,75 +92,77 @@ export function CategoryChart({ expenses }: CategoryChartProps) {
         <CardDescription>A visual breakdown of your expenses by category.</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={config} className="h-[300px] flex items-center justify-center">
-          <ResponsiveContainer width="100%" height="100%" className="max-w-[300px]">
-            <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-              <Pie
-                data={data}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius={50}
-                outerRadius={70}
-                paddingAngle={2}
-              >
-                {data.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`}
-                    fill={chartColors[index % chartColors.length]}
-                  />
-                ))}
-              </Pie>
-              <ChartTooltip
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0];
-                    const value = typeof data.value === 'number' ? data.value : 0;
-                    return (
-                      <div className="rounded-lg border bg-background p-2 shadow-sm">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="flex items-center">
-                            <div
-                              className="mr-2 h-2 w-2 rounded"
-                              style={{
-                                background: data.payload.fill,
-                              }}
-                            />
-                            <span className="font-medium">{data.name}</span>
-                          </div>
-                          <div className="text-right font-medium">
-                            {formatCurrency(value)}
+        <div className="flex items-center justify-center h-[300px] w-full">
+          <ChartContainer config={config} className="w-full max-w-[360px] h-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                <Pie
+                  data={data}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={80}
+                  outerRadius={120}
+                  paddingAngle={2}
+                >
+                  {data.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`}
+                      fill={chartColors[index % chartColors.length]}
+                    />
+                  ))}
+                </Pie>
+                <ChartTooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0];
+                      const value = typeof data.value === 'number' ? data.value : 0;
+                      return (
+                        <div className="rounded-lg border bg-background p-2 shadow-sm">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="flex items-center">
+                              <div
+                                className="mr-2 h-2 w-2 rounded"
+                                style={{
+                                  background: data.payload.fill,
+                                }}
+                              />
+                              <span className="font-medium">{data.name}</span>
+                            </div>
+                            <div className="text-right font-medium">
+                              {formatCurrency(value)}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Legend
-                content={({ payload }) => (
-                  <div className="mt-6 flex flex-wrap justify-center gap-4">
-                    {payload?.map((entry, index) => (
-                      <div key={`legend-${index}`} className="flex items-center">
-                        <div
-                          className="mr-2 h-2 w-2 rounded"
-                          style={{
-                            background: chartColors[index % chartColors.length],
-                          }}
-                        />
-                        <span className="text-sm">
-                          {entry.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartContainer>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Legend
+                  content={({ payload }) => (
+                    <div className="mt-6 flex flex-wrap justify-center gap-4">
+                      {payload?.map((entry, index) => (
+                        <div key={`legend-${index}`} className="flex items-center">
+                          <div
+                            className="mr-2 h-2 w-2 rounded"
+                            style={{
+                              background: chartColors[index % chartColors.length],
+                            }}
+                          />
+                          <span className="text-sm">
+                            {entry.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </div>
       </CardContent>
     </Card>
   );

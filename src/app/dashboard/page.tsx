@@ -7,6 +7,7 @@ import { CategoryChart } from "@/components/dashboard/category-chart"
 import { DashboardSummary } from "@/components/dashboard/dashboard-summary"
 import { MonthlySpendChart } from "@/components/dashboard/monthly-spend-chart"
 import { TopVendorsChart } from "@/components/dashboard/top-vendors-chart"
+import { SpendingHeatmap } from "@/components/dashboard/spending-heatmap"
 import { type Expense, type ExpenseFormData } from "@/types"
 import {
   Dialog,
@@ -149,6 +150,9 @@ export default function DashboardPage() {
                             onExpenseDeleted={handleExpenseDeleted}
                             onExpenseUpdated={handleExpenseUpdated}
                         />
+                        <div className="mt-8">
+                            <SpendingHeatmap expenses={expenses} />
+                        </div>
                     </div>
                     <div className="lg:col-span-2 space-y-8">
                         <CategoryChart expenses={expenses} />

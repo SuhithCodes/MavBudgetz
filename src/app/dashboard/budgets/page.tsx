@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { type Budget, type BudgetFormData } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { addBudget, getBudgets, deleteBudget } from '@/lib/actions/budgets';
+import { addBudget, getBudgets, deleteBudget, updateBudget } from '@/lib/actions/budgets';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { type Expense } from '@/types';
@@ -108,6 +108,29 @@ export default function BudgetsPage() {
         }
     };
 
+    const handleBudgetUpdated = async (budgetId: string, budgetData: BudgetFormData) => {
+        try {
+            await updateBudget(budgetId, budgetData);
+            setBudgets((prevBudgets) =>
+                prevBudgets.map((budget) =>
+                    budget.id === budgetId
+                        ? { ...budget, ...budgetData }
+                        : budget
+                )
+            );
+            toast({
+                title: 'Budget Updated',
+                description: `Your budget for "${budgetData.name}" has been updated.`,
+            });
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not update budget.',
+            });
+        }
+    };
+
     return (
         <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 container mx-auto">
             <div className="flex items-center justify-between">
@@ -123,7 +146,7 @@ export default function BudgetsPage() {
                         <DialogHeader>
                             <DialogTitle>Create a New Budget</DialogTitle>
                         </DialogHeader>
-                        <BudgetForm onBudgetAdded={handleBudgetAdded} />
+                        <BudgetForm onSubmit={handleBudgetAdded} />
                     </DialogContent>
                 </Dialog>
             </div>
@@ -137,7 +160,12 @@ export default function BudgetsPage() {
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
                     ) : (
-                        <BudgetList budgets={budgets} expenses={expenses} onBudgetDeleted={handleBudgetDeleted} />
+                        <BudgetList 
+                            budgets={budgets} 
+                            expenses={expenses} 
+                            onBudgetDeleted={handleBudgetDeleted}
+                            onBudgetUpdated={handleBudgetUpdated}
+                        />
                     )}
                 </CardContent>
             </Card>

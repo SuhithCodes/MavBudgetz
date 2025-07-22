@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Pencil, Trash2, PlusCircle, MinusCircle } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInMonths, differenceInDays, addMonths, addDays } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -54,6 +54,37 @@ export function SavingsGoalList({ goals, onGoalDeleted, onGoalUpdated }: Savings
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {goals.map((goal) => {
                     const progress = (goal.currentAmount / goal.targetAmount) * 100;
+
+                    // Forecasting logic
+                    let forecastText = '';
+                    let monthsElapsed = 0;
+                    let daysElapsed = 0;
+                    let avgMonthlySavings = 0;
+                    let avgDailySavings = 0;
+                    let projectedDate: Date | null = null;
+                    // Use created date if available, else fallback to currentAmount > 0 as start
+                    const startDate = goal.deadline ? parseISO(goal.deadline) : null;
+                    const today = new Date();
+                    // If the user has made progress, estimate based on time since first progress
+                    if (goal.currentAmount > 0) {
+                        // For simplicity, use days since the goal was created or since first progress
+                        // If you have a createdAt field, use it. Otherwise, fallback to 1 month ago
+                        // Here, we fallback to 1 month ago if no deadline
+                        const effectiveStart = startDate || addMonths(today, -1);
+                        daysElapsed = Math.max(differenceInDays(today, effectiveStart), 1);
+                        avgDailySavings = goal.currentAmount / daysElapsed;
+                        const remaining = goal.targetAmount - goal.currentAmount;
+                        if (avgDailySavings > 0) {
+                            const daysToGoal = Math.ceil(remaining / avgDailySavings);
+                            projectedDate = addDays(today, daysToGoal);
+                            forecastText = `Estimated completion: ${format(projectedDate, 'MMM yyyy')}`;
+                        } else {
+                            forecastText = 'No projection available';
+                        }
+                    } else {
+                        forecastText = 'No projection available';
+                    }
+
                     return (
                         <Card key={goal.id}>
                             <CardHeader>
@@ -65,6 +96,9 @@ export function SavingsGoalList({ goals, onGoalDeleted, onGoalUpdated }: Savings
                                                 Deadline: {format(parseISO(goal.deadline), 'MMM dd, yyyy')}
                                             </CardDescription>
                                         )}
+                                        <CardDescription className="mt-1 text-green-800 font-medium">
+                                            {forecastText}
+                                        </CardDescription>
                                     </div>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
