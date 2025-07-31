@@ -213,11 +213,20 @@ export function ExpenseList({ expenses, showTitle = true, showExport = true, onE
                                 Paid with {expense.paymentMethod} at {expense.time}.
                             </p>
                             {expense.lineItems && expense.lineItems.length > 0 && (
-                                <ul className="mt-2 list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                                    {expense.lineItems.map((item, index) => (
-                                        <li key={index}>{item}</li>
-                                    ))}
-                                </ul>
+                                 <div className="mt-4 pt-4 border-t">
+                                    <h4 className="text-sm font-semibold mb-2">Line Items</h4>
+                                    <ul className="space-y-1.5 text-sm text-muted-foreground">
+                                        {expense.lineItems.map((item, index) => (
+                                            <li key={index} className="flex justify-between items-center">
+                                                <span>{item.name}</span>
+                                                <span className="font-mono">{new Intl.NumberFormat("en-US", {
+                                                    style: "currency",
+                                                    currency: getSafeCurrencyCode(expense.currency),
+                                                }).format(item.amount)}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
                             )}
                             {(typeof expense.subtotal === 'number' || typeof expense.taxes === 'number') && (
                                 <div className="pt-3 mt-3 border-t">

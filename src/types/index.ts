@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { type ExtractReceiptDataOutput } from '@/ai/flows/extract-receipt-data';
 
+export const lineItemSchema = z.object({
+  name: z.string().min(1, 'Item name is required.'),
+  amount: z.number().min(0, 'Amount cannot be negative.'),
+});
+
 export const expenseSchema = z.object({
   id: z.string(),
   userId: z.string(),
@@ -8,7 +13,7 @@ export const expenseSchema = z.object({
   date: z.string().min(1, 'Date is required.'),
   totalAmount: z.number().min(0.01, 'Total must be greater than 0.'),
   category: z.string().min(1, 'Category is required.'),
-  lineItems: z.array(z.string()).optional(),
+  lineItems: z.array(lineItemSchema).optional(),
   taxes: z.number().optional(),
   currency: z.string().optional(),
   paymentMethod: z.string().optional(),

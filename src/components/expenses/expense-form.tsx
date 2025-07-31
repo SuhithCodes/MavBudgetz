@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { useForm } from "react-hook-form"
+import { useState, useRef, useEffect, useCallback } from "react"
+import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Camera, Loader2, UploadCloud, X, PenLine, Clock, Receipt, CreditCard } from "lucide-react"
+import { Camera, Loader2, UploadCloud, X, PenLine, Clock, Receipt, CreditCard, PlusCircle, Trash2 } from "lucide-react"
 import Image from "next/image"
 
 import { Button } from "@/components/ui/button"
@@ -16,6 +16,17 @@ import { processReceipt } from "@/lib/actions"
 import { cn } from "@/lib/utils"
 import { type Expense, type ExpenseFormData, expenseFormSchema, type ProcessedReceiptData } from "@/types"
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface ExpenseFormProps {
     onSubmit: (expense: ExpenseFormData) => void;
@@ -50,6 +61,31 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
             time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
         },
     });
+
+    const { fields, append, remove, update } = useFieldArray({
+        control: form.control,
+        name: "lineItems",
+    });
+
+    const lineItems = form.watch("lineItems");
+
+    const updateTotalAmount = useCallback(() => {
+        const newLineItems = form.getValues("lineItems");
+        if (newLineItems && newLineItems.length > 0) {
+            const total = newLineItems.reduce((acc, item) => acc + (item.amount || 0), 0);
+            form.setValue("totalAmount", parseFloat(total.toFixed(2)), { shouldValidate: true });
+        }
+    }, [form]);
+    
+    useEffect(() => {
+        const subscription = form.watch((value, { name }) => {
+            if (name && name.startsWith("lineItems")) {
+                updateTotalAmount();
+            }
+        });
+        return () => subscription.unsubscribe();
+    }, [form, updateTotalAmount]);
+    
 
     useEffect(() => {
         if (initialData) {
@@ -91,10 +127,23 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
         } else {
             setProcessedData(result);
             const newDate = new Date(result.date).toISOString().split('T')[0];
+            const lineItems = result.lineItems?.map(item => {
+                // Assuming the item is a string that needs to be parsed.
+                // You might need to adjust this depending on the actual format of `result.lineItems`.
+                // For example, if it's "Product Name - $12.34"
+                const parts = typeof item === 'string' ? item.split(' - $') : [];
+                if (parts.length === 2) {
+                    return { name: parts[0], amount: parseFloat(parts[1]) };
+                }
+                // Adjust this fallback as needed
+                return { name: item, amount: 0 };
+            }) || [];
             form.reset({
                 ...result,
                 date: newDate,
+                lineItems: lineItems,
             });
+            updateTotalAmount();
         }
         setIsProcessing(false);
     };
@@ -273,6 +322,7 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
                             step="0.01"
                             {...form.register("totalAmount", { valueAsNumber: true })}
                             placeholder="0.00"
+                            readOnly={fields.length > 0}
                         />
                         {form.formState.errors.totalAmount && (
                             <p className="text-sm text-destructive">{form.formState.errors.totalAmount.message}</p>
@@ -306,6 +356,52 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
                     </div>
                 </div>
             </div>
+
+            {/* Line Items */}
+            <div className="space-y-4 rounded-lg border bg-background p-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="font-semibold">Line Items</h3>
+                        <p className="text-sm text-muted-foreground">Add individual items from your receipt.</p>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', amount: 0 })}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add Item
+                    </Button>
+                </div>
+
+                {fields.length > 0 && (
+                    <div className="space-y-3">
+                        {fields.map((field, index) => (
+                            <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+                                <Input
+                                    {...form.register(`lineItems.${index}.name`)}
+                                    placeholder="Item name"
+                                    defaultValue={field.name}
+                                />
+                                <Input
+                                    type="number"
+                                    step="0.01"
+                                    {...form.register(`lineItems.${index}.amount`, { valueAsNumber: true })}
+                                    placeholder="Amount"
+                                    defaultValue={field.amount}
+                                    className="w-28"
+                                />
+                                <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                 {fields.length === 0 && (
+                    <div className="flex flex-col items-center justify-center rounded-md border-2 border-dashed border-muted bg-muted/50 p-6 text-center">
+                        <p className="text-sm text-muted-foreground">No line items added yet.</p>
+                        <p className="mt-1 text-xs text-muted-foreground">The total amount will be calculated automatically once you add items.</p>
+                    </div>
+                )}
+            </div>
+
 
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
