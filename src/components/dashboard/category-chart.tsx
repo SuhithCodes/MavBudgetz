@@ -102,8 +102,8 @@ export function CategoryChart({ expenses }: CategoryChartProps) {
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  innerRadius={80}
-                  outerRadius={120}
+                  innerRadius={60}
+                  outerRadius={100}
                   paddingAngle={2}
                 >
                   {data.map((entry, index) => (

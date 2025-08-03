@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CategoryManager } from "@/components/settings/category-manager"
 import { useAuth } from "@/context/auth-context"
 import { useState, useEffect } from "react";
-import { doc, setDoc, getDoc, writeBatch } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { getExpenses } from '@/lib/actions/expenses';
@@ -26,18 +26,6 @@ import { getBudgets } from '@/lib/actions/budgets';
 import { marked } from 'marked';
 import html2pdf from 'html2pdf.js';
 import { endOfMonth, startOfMonth, format as formatDate } from 'date-fns';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { getAuth, deleteUser } from "firebase/auth";
-import { useRouter } from "next/navigation";
 
 
 interface UserPreferences {
@@ -54,8 +42,6 @@ export default function SettingsPage() {
         pushNotifications: false,
         monthlyReports: false,
     });
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const router = useRouter();
     
     useEffect(() => {
         if (user) {
@@ -203,62 +189,6 @@ export default function SettingsPage() {
     toast({ title: 'Summary Report Generated', description: 'Your summary report PDF is downloading.' });
   };
 
-    const handleDeleteAccount = async () => {
-        if (!user) return;
-
-        try {
-            // 1. Get all collections for the user
-            const expensesPromise = getExpenses(user.uid);
-            const budgetsPromise = getBudgets(user.uid);
-            const savingsGoalsPromise = getSavingsGoals(user.uid);
-            const userPrefsRef = doc(db, 'userPreferences', user.uid);
-
-            const [expenses, budgets, savingsGoals] = await Promise.all([
-                expensesPromise,
-                budgetsPromise,
-                savingsGoalsPromise
-            ]);
-
-            // 2. Create a batched write to delete all data
-            const batch = writeBatch(db);
-
-            expenses.forEach(exp => batch.delete(doc(db, 'expenses', exp.id)));
-            budgets.forEach(bud => batch.delete(doc(db, 'budgets', bud.id)));
-            savingsGoals.forEach(goal => batch.delete(doc(db, 'savingsGoals', goal.id)));
-            batch.delete(userPrefsRef);
-
-            await batch.commit();
-
-            // 3. Delete the user from Firebase Auth
-            const auth = getAuth();
-            const currentUser = auth.currentUser;
-            if (currentUser) {
-                await deleteUser(currentUser);
-            }
-            
-            toast({ title: "Account Deleted", description: "Your account and all data have been permanently deleted." });
-            router.push('/');
-
-        } catch (error: any) {
-            console.error("Error deleting account:", error);
-            if (error.code === 'auth/requires-recent-login') {
-                 toast({
-                    variant: "destructive",
-                    title: "Re-authentication Required",
-                    description: "For your security, please log out and log back in before deleting your account.",
-                });
-            } else {
-                 toast({
-                    variant: "destructive",
-                    title: "Error",
-                    description: "Could not delete your account. Please try again.",
-                });
-            }
-        } finally {
-            setIsDeleteDialogOpen(false);
-        }
-    };
-
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 container mx-auto">
@@ -379,63 +309,20 @@ export default function SettingsPage() {
           <Card className="max-w-3xl">
             <CardHeader>
               <CardTitle>Data & Reports</CardTitle>
-              <CardDescription>Manage your data export and reporting settings.</CardDescription>
+              <CardDescription>Export your data or generate a monthly summary report.</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-6">
-               <div className="flex items-center justify-between space-x-2">
-                    <Label htmlFor="expenses-report" className="flex flex-col space-y-1">
-                        <span>Expenses Report</span>
-                        <span className="font-normal leading-snug text-muted-foreground">
-                           Export a CSV file of all your transactions.
-                        </span>
-                    </Label>
-                    <Button id="expenses-report" variant="outline" size="sm" onClick={handleExportExpensesCSV} className="w-32 justify-center">
-                        Export CSV
-                    </Button>
-                </div>
-                 <div className="flex items-center justify-between space-x-2">
-                    <Label htmlFor="summary-report" className="flex flex-col space-y-1">
-                        <span>Monthly Summary Report</span>
-                        <span className="font-normal leading-snug text-muted-foreground">
-                           Generate an AI-powered PDF summary of your finances.
-                        </span>
-                    </Label>
-                    <Button id="summary-report" size="sm" onClick={handleSummaryReport} className="w-32 justify-center">
-                        Generate PDF
-                    </Button>
-                </div>
-                 <div className="flex items-center justify-between space-x-2 pt-4 border-t border-destructive/20">
-                    <Label htmlFor="delete-account" className="flex flex-col space-y-1">
-                        <span className="font-semibold text-destructive">Delete Account</span>
-                        <span className="font-normal leading-snug text-muted-foreground">
-                           Permanently delete your account and all of your data.
-                        </span>
-                    </Label>
-                    <Button id="delete-account" variant="destructive" size="sm" onClick={() => setIsDeleteDialogOpen(true)} className="w-32 justify-center">
-                        Delete Account
-                    </Button>
-                </div>
+            <CardContent className="space-y-6">
+              <Button variant="outline" className="w-full" onClick={handleExportExpensesCSV}>
+                Expenses Report (CSV)
+              </Button>
+              <Button className="w-full" onClick={handleSummaryReport}>
+                Summary Report (AI PDF)
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
 
-        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete your account and remove all of your data from our servers.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteAccount} className="bg-destructive hover:bg-destructive/90">
-                        Delete
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+      </Tabs>
     </main>
   )
 }

@@ -30,7 +30,11 @@ const ExtractReceiptDataOutputSchema = z.object({
     paymentMethod: z.string().optional().describe('The method of payment used (e.g., cash, credit card).'),
     subtotal: z.number().optional().describe('The subtotal amount of the purchase'),
     currency: z.string().optional().describe('The three-letter ISO 4217 currency code of the purchase (e.g., USD, EUR).'),
-    lineItems: z.array(z.string()).optional().describe('The individual products or services purchased.')
+    lineItems: z.array(z.object({
+        name: z.string().describe('The name of the product or service.'),
+        quantity: z.number().optional().describe('The quantity of the item purchased.'),
+        amount: z.number().describe('The total price of the line item (quantity * unit price).')
+    })).optional().describe('The individual products or services purchased. Extract the name, quantity (if available), and the total amount for each item.')
 });
 export type ExtractReceiptDataOutput = z.infer<typeof ExtractReceiptDataOutputSchema>;
 
@@ -53,6 +57,10 @@ Use the following as the primary source of information about the receipt.
 Photo: {{media url=photoDataUri}}
 
 When extracting data from a valid receipt, pay close attention to the format requirements for each field. For the currency, you MUST return a three-letter ISO 4217 currency code (e.g., USD, EUR, JPY). It is critical that you do not use currency symbols like $ or €. Only use the three-letter code.
+
+For each line item, extract the name, quantity (if available), and the total amount for the item. The amount should be the total for that line (e.g., quantity multiplied by the unit price).
+
+If no tax amount is explicitly listed on the receipt, set the 'taxes' field to 0.
 
 Output the data in JSON format. Do not include any surrounding text.
 `,

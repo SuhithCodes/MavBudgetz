@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Camera, Loader2, UploadCloud, X, PenLine, Clock, Receipt, CreditCard, PlusCircle, Trash2 } from "lucide-react"
@@ -41,6 +41,7 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [processedData, setProcessedData] = useState<ProcessedReceiptData | null>(null);
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | undefined>(undefined);
+    const [showLineItems, setShowLineItems] = useState(false);
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -65,33 +66,31 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
     const { fields, append, remove, update } = useFieldArray({
         control: form.control,
         name: "lineItems",
+        keyName: "id", // Use a stable key
     });
 
-    const lineItems = form.watch("lineItems");
+    // Remove the problematic watch call that causes re-renders
 
-    const updateTotalAmount = useCallback(() => {
-        const newLineItems = form.getValues("lineItems");
-        if (newLineItems && newLineItems.length > 0) {
-            const total = newLineItems.reduce((acc, item) => acc + (item.amount || 0), 0);
-            form.setValue("totalAmount", parseFloat(total.toFixed(2)), { shouldValidate: true });
-        }
+    // Manual total calculation triggered by form submission or specific events
+    const calculateTotal = useCallback(() => {
+        const subtotal = form.getValues("subtotal") || 0;
+        const taxes = form.getValues("taxes") || 0;
+        const total = subtotal + taxes;
+        form.setValue("totalAmount", parseFloat(total.toFixed(2)), { shouldValidate: false });
     }, [form]);
-    
-    useEffect(() => {
-        const subscription = form.watch((value, { name }) => {
-            if (name && name.startsWith("lineItems")) {
-                updateTotalAmount();
-            }
-        });
-        return () => subscription.unsubscribe();
-    }, [form, updateTotalAmount]);
     
 
     useEffect(() => {
         if (initialData) {
             form.reset(initialData);
+            // Show line items section if there are existing line items
+            if (initialData.lineItems && initialData.lineItems.length > 0) {
+                setShowLineItems(true);
+            }
+            // Calculate total for existing data
+            calculateTotal();
         }
-    }, [initialData, form]);
+    }, [initialData, form, calculateTotal]);
 
     const stopCamera = () => {
         if (videoRef.current && videoRef.current.srcObject) {
@@ -127,23 +126,16 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
         } else {
             setProcessedData(result);
             const newDate = new Date(result.date).toISOString().split('T')[0];
-            const lineItems = result.lineItems?.map(item => {
-                // Assuming the item is a string that needs to be parsed.
-                // You might need to adjust this depending on the actual format of `result.lineItems`.
-                // For example, if it's "Product Name - $12.34"
-                const parts = typeof item === 'string' ? item.split(' - $') : [];
-                if (parts.length === 2) {
-                    return { name: parts[0], amount: parseFloat(parts[1]) };
-                }
-                // Adjust this fallback as needed
-                return { name: item, amount: 0 };
-            }) || [];
+            const lineItems = result.lineItems?.map(item => ({
+                name: item.name || '',
+                amount: item.amount || 0,
+            })) || [];
             form.reset({
                 ...result,
                 date: newDate,
                 lineItems: lineItems,
             });
-            updateTotalAmount();
+            calculateTotal();
         }
         setIsProcessing(false);
     };
@@ -217,10 +209,6 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
         if (value === 'manual') {
             resetForm();
             setProcessedData(null);
-            form.reset({
-                ...form.getValues(),
-                date: new Date().toISOString().split('T')[0],
-            });
         }
     };
 
@@ -228,7 +216,22 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
         setIsProcessing(false);
         setPreviewUrl(null);
         setProcessedData(null);
-        form.reset();
+        setShowLineItems(false);
+        // Only reset form if we're not editing (no initialData)
+        if (!initialData) {
+            form.reset({
+                vendorName: "",
+                date: new Date().toISOString().split('T')[0],
+                totalAmount: 0,
+                category: "",
+                lineItems: [],
+                taxes: 0,
+                currency: DEFAULT_CURRENCY,
+                paymentMethod: "",
+                subtotal: 0,
+                time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+            });
+        }
         if (clearFileInput && fileInputRef.current) {
             fileInputRef.current.value = "";
         }
@@ -241,6 +244,8 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
         if (!initialData) { // Only reset if it's a new expense
             toast({ title: "Expense Saved", description: `${data.vendorName} has been added to your expenses.` });
             resetForm();
+        } else { // Editing existing expense
+            toast({ title: "Expense Updated", description: `${data.vendorName} has been updated successfully.` });
         }
     };
 
@@ -257,7 +262,7 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
             )}
             
             {/* Basic Info */}
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <Label htmlFor="vendorName">Vendor Name *</Label>
                     <Input 
@@ -312,7 +317,33 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
             </div>
 
             {/* Amount Details */}
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                    <Label htmlFor="subtotal">Subtotal</Label>
+                    <div className="relative">
+                        <Receipt className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            id="subtotal" 
+                            type="number" 
+                            step="0.01"
+                            className="pl-9"
+                            {...form.register("subtotal", { valueAsNumber: true })}
+                            placeholder="0.00"
+                            onBlur={calculateTotal}
+                        />
+                    </div>
+                </div>
+                <div className="space-y-1.5">
+                    <Label htmlFor="taxes">Tax</Label>
+                    <Input 
+                        id="taxes" 
+                        type="number" 
+                        step="0.01"
+                        {...form.register("taxes", { valueAsNumber: true })}
+                        placeholder="0.00"
+                        onBlur={calculateTotal}
+                    />
+                </div>
                 <div className="space-y-1.5">
                     <Label htmlFor="totalAmount">Total Amount *</Label>
                     <div className="relative">
@@ -322,85 +353,60 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
                             step="0.01"
                             {...form.register("totalAmount", { valueAsNumber: true })}
                             placeholder="0.00"
-                            readOnly={fields.length > 0}
+                            readOnly={true}
                         />
+                        <p className="text-xs text-muted-foreground mt-1">subtotal + tax</p>
                         {form.formState.errors.totalAmount && (
                             <p className="text-sm text-destructive">{form.formState.errors.totalAmount.message}</p>
                         )}
                     </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                        <Label htmlFor="subtotal">Subtotal</Label>
-                        <div className="relative">
-                            <Receipt className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                id="subtotal" 
-                                type="number" 
-                                step="0.01"
-                                className="pl-9"
-                                {...form.register("subtotal", { valueAsNumber: true })}
-                                placeholder="0.00"
-                            />
-                        </div>
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label htmlFor="taxes">Tax</Label>
-                        <Input 
-                            id="taxes" 
-                            type="number" 
-                            step="0.01"
-                            {...form.register("taxes", { valueAsNumber: true })}
-                            placeholder="0.00"
-                        />
-                    </div>
-                </div>
             </div>
 
             {/* Line Items */}
-            <div className="space-y-4 rounded-lg border bg-background p-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h3 className="font-semibold">Line Items</h3>
-                        <p className="text-sm text-muted-foreground">Add individual items from your receipt.</p>
+            {showLineItems && (
+                <div className="space-y-4 rounded-lg border bg-background p-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="font-semibold">Line Items</h3>
+                            <p className="text-sm text-muted-foreground">Add individual items from your receipt.</p>
+                        </div>
+                        <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', amount: 0 })}>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Add Item
+                        </Button>
                     </div>
-                    <Button type="button" variant="outline" size="sm" onClick={() => append({ name: '', amount: 0 })}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Add Item
-                    </Button>
-                </div>
 
-                {fields.length > 0 && (
-                    <div className="space-y-3">
-                        {fields.map((field, index) => (
-                            <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
-                                <Input
-                                    {...form.register(`lineItems.${index}.name`)}
-                                    placeholder="Item name"
-                                    defaultValue={field.name}
-                                />
-                                <Input
-                                    type="number"
-                                    step="0.01"
-                                    {...form.register(`lineItems.${index}.amount`, { valueAsNumber: true })}
-                                    placeholder="Amount"
-                                    defaultValue={field.amount}
-                                    className="w-28"
-                                />
-                                <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                            </div>
-                        ))}
-                    </div>
-                )}
-                 {fields.length === 0 && (
-                    <div className="flex flex-col items-center justify-center rounded-md border-2 border-dashed border-muted bg-muted/50 p-6 text-center">
-                        <p className="text-sm text-muted-foreground">No line items added yet.</p>
-                        <p className="mt-1 text-xs text-muted-foreground">The total amount will be calculated automatically once you add items.</p>
-                    </div>
-                )}
-            </div>
+                    {fields.length > 0 && (
+                        <div className="space-y-3">
+                            {fields.map((field, index) => (
+                                <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+                                                                        <Input
+                                        {...form.register(`lineItems.${index}.name`)}
+                                        placeholder="Item name"
+                                    />
+                                    <Input
+                                        type="number"
+                                        step="0.01"
+                                        {...form.register(`lineItems.${index}.amount`, { valueAsNumber: true })}
+                                        placeholder="Amount"
+                                        className="w-28"
+                                    />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                     {fields.length === 0 && (
+                        <div className="flex flex-col items-center justify-center rounded-md border-2 border-dashed border-muted bg-muted/50 p-6 text-center">
+                            <p className="text-sm text-muted-foreground">No line items added yet.</p>
+                            <p className="mt-1 text-xs text-muted-foreground">The total amount is calculated automatically from subtotal + tax.</p>
+                        </div>
+                    )}
+                </div>
+            )}
 
 
             <div className="grid grid-cols-2 gap-4">
@@ -427,10 +433,20 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
                 </div>
             </div>
 
-            <Button type="submit" className="w-full bg-accent hover:bg-accent/90" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Save Expense
-            </Button>
+            <div className="flex gap-2">
+                <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => setShowLineItems(!showLineItems)}
+                >
+                    Items
+                </Button>
+                <Button type="submit" className="flex-1 bg-accent hover:bg-accent/90" disabled={form.formState.isSubmitting}>
+                    {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {initialData ? 'Update Expense' : 'Save Expense'}
+                </Button>
+            </div>
         </div>
     );
 
@@ -509,14 +525,7 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
 
                 <TabsContent value="manual">
                     <div className="mt-4">
-                        <Alert className="mb-4">
-                            <PenLine className="h-4 w-4" />
-                            <AlertTitle>Manual Entry</AlertTitle>
-                            <AlertDescription>
-                                Enter your expense details manually without scanning a receipt.
-                            </AlertDescription>
-                        </Alert>
-                        <ExpenseFields />
+                            <ExpenseFields />
                     </div>
                 </TabsContent>
             </Tabs>
