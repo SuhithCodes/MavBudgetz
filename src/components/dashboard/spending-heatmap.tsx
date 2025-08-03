@@ -44,16 +44,33 @@ export function SpendingHeatmap({ expenses }: SpendingHeatmapProps) {
 
   const startDate = subYears(new Date(), 1);
 
-  const handleDayClick = (data: { date?: string }) => {
-    if (data.date) {
+  const handleDayClick = (event: React.MouseEvent, data?: any) => {
+    // Try to get the date from the event target or data
+    const target = event.target as HTMLElement;
+    const dateAttr = target.getAttribute('data-date') || target.getAttribute('data-value');
+    
+    if (dateAttr) {
       // Convert heatmap date (yyyy/MM/dd) to yyyy-MM-dd for comparison
-      const [year, month, day] = data.date.split('/');
+      const [year, month, day] = dateAttr.split('/');
       const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      
+      console.log('Clicked date:', dateAttr);
+      console.log('Looking for expenses on:', isoDate);
+      console.log('Total expenses:', expenses.length);
+      
       const expensesForDay = expenses.filter(exp => {
-        // Compare only the date part (ignore time)
-        return exp.date.startsWith(isoDate);
+        // Normalize the expense date to ensure proper comparison
+        const expenseDate = new Date(exp.date);
+        const expenseDateStr = format(expenseDate, 'yyyy-MM-dd');
+        const matches = expenseDateStr === isoDate;
+        
+        console.log(`Expense: ${exp.vendorName}, Date: ${exp.date}, Normalized: ${expenseDateStr}, Matches: ${matches}`);
+        
+        return matches;
       });
-      setSelectedDay({ date: data.date, expenses: expensesForDay });
+      
+      console.log('Found expenses for day:', expensesForDay.length);
+      setSelectedDay({ date: dateAttr, expenses: expensesForDay });
     }
   };
 
@@ -73,6 +90,7 @@ export function SpendingHeatmap({ expenses }: SpendingHeatmapProps) {
                         style={{ color: '#ad001d' }}
                         panelColors={panelColors}
                         rectRender={(props) => <rect {...props} />}
+                        onClick={handleDayClick}
                     />
                 </div>
             </CardContent>
@@ -81,10 +99,15 @@ export function SpendingHeatmap({ expenses }: SpendingHeatmapProps) {
         <Dialog open={selectedDay !== null} onOpenChange={(isOpen) => !isOpen && setSelectedDay(null)}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Expenses for {selectedDay?.date}</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle className="text-xl font-bold">
+                        {selectedDay?.date ? format(new Date(selectedDay.date.replace(/\//g, '-')), 'EEEE, MMMM d, yyyy') : ''}
+                    </DialogTitle>
+                    <DialogDescription className="text-lg font-semibold text-primary">
                         Total spent: {formatCurrency(selectedDay?.expenses.reduce((acc, exp) => acc + exp.totalAmount, 0) || 0)}
                     </DialogDescription>
+                    <div className="text-sm text-muted-foreground">
+                        Found {selectedDay?.expenses.length || 0} transactions for this day
+                    </div>
                 </DialogHeader>
                 <div className="max-h-[60vh] overflow-y-auto">
                     {selectedDay?.expenses.length ? (
@@ -97,7 +120,7 @@ export function SpendingHeatmap({ expenses }: SpendingHeatmapProps) {
                             ))}
                         </ul>
                     ) : (
-                        <p>No expenses recorded for this day.</p>
+                        <p className="text-center text-muted-foreground py-8">No expenses recorded for this day.</p>
                     )}
                 </div>
             </DialogContent>

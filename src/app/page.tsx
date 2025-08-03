@@ -27,6 +27,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { AuthFooter } from '@/components/ui/footer';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -89,7 +90,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-background p-4">
+    <div className="flex min-h-screen w-full items-center justify-center bg-background p-4 pb-20">
       <Card className="mx-auto max-w-sm w-full">
         <CardHeader className="text-center">
           <div className="flex justify-center items-center mb-4">
@@ -164,6 +165,7 @@ export default function LoginPage() {
           </div>
         </CardContent>
       </Card>
+      <AuthFooter />
     </div>
   );
 }
