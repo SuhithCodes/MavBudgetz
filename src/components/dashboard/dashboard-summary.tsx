@@ -2,16 +2,19 @@
 
 import { DollarSign, ReceiptText, Tags } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { type Expense } from "@/types"
+import { type Expense, type Income } from "@/types"
 import Link from "next/link"
 
 interface DashboardSummaryProps {
   expenses: Expense[];
+  incomes?: Income[];
 }
 
-export function DashboardSummary({ expenses }: DashboardSummaryProps) {
+export function DashboardSummary({ expenses, incomes = [] }: DashboardSummaryProps) {
   const totalAmount = expenses.reduce((sum, expense) => sum + expense.totalAmount, 0);
   const totalExpenses = expenses.length;
+  const totalIncomes = incomes.length;
+  const totalTransactions = totalExpenses + totalIncomes;
   const uniqueCategories = new Set(expenses.map(e => e.category)).size;
 
   return (
@@ -30,14 +33,16 @@ export function DashboardSummary({ expenses }: DashboardSummaryProps) {
       </Card>
       <Link href="/dashboard/transactions">
         <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Transactions</CardTitle>
             <ReceiptText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-            <div className="text-2xl font-bold">{totalExpenses}</div>
-            <p className="text-xs text-muted-foreground">Receipts processed</p>
-            </CardContent>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalTransactions}</div>
+            <p className="text-xs text-muted-foreground">
+              Expenses {totalExpenses} • Incomes {totalIncomes}
+            </p>
+          </CardContent>
         </Card>
       </Link>
       <Card>

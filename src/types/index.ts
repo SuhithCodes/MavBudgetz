@@ -64,3 +64,19 @@ export const savingsGoalFormSchema = savingsGoalSchema.omit({ id: true, userId: 
 
 export type SavingsGoal = z.infer<typeof savingsGoalSchema>;
 export type SavingsGoalFormData = z.infer<typeof savingsGoalFormSchema>;
+
+// Income types
+export const incomeSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  sourceName: z.string().min(1, 'Source name is required.'),
+  date: z.string().min(1, 'Date is required.'),
+  amount: z.number().min(0.01, 'Amount must be greater than 0.'),
+  currency: z.string().optional(),
+  note: z.string().optional(),
+});
+
+export const incomeFormSchema = incomeSchema.omit({ id: true, userId: true });
+
+export type Income = z.infer<typeof incomeSchema>;
+export type IncomeFormData = z.infer<typeof incomeFormSchema>;

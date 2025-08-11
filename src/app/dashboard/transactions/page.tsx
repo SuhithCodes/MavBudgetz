@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
-import { type Expense } from "@/types";
+import { type Expense, type Income } from "@/types";
 import { ExpenseList } from "@/components/expenses/expense-list";
 import { Loader2, Calendar as CalendarIcon, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,13 +17,17 @@ import { DateRange } from "react-day-picker";
 import { format, parseISO, isWithinInterval } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { deleteExpense, updateExpense } from "@/lib/actions/expenses";
-import { type ExpenseFormData } from "@/types";
+import { type ExpenseFormData, type IncomeFormData } from "@/types";
+import { IncomeList } from "@/components/income/income-list";
+import { deleteIncome, updateIncome } from "@/lib/actions/incomes";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function TransactionsPage() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [incomes, setIncomes] = useState<Income[]>([]);
 
     // Filter states
     const [searchQuery, setSearchQuery] = useState("");
@@ -32,14 +36,23 @@ export default function TransactionsPage() {
 
     useEffect(() => {
         if (user) {
-            const q = query(collection(db, "expenses"), where("userId", "==", user.uid), orderBy("date", "desc"));
-            const unsubscribe = onSnapshot(q, (snapshot) => {
+            const qExpenses = query(collection(db, "expenses"), where("userId", "==", user.uid), orderBy("date", "desc"));
+            const qIncomes = query(collection(db, "incomes"), where("userId", "==", user.uid), orderBy("date", "desc"));
+            const unsubExpenses = onSnapshot(qExpenses, (snapshot) => {
                 const expensesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
                 setExpenses(expensesData);
                 setIsLoading(false);
             }, () => setIsLoading(false));
+            const unsubIncomes = onSnapshot(qIncomes, (snapshot) => {
+                const incomesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Income));
+                setIncomes(incomesData);
+                setIsLoading(false);
+            }, () => setIsLoading(false));
 
-            return () => unsubscribe();
+            return () => {
+                unsubExpenses();
+                unsubIncomes();
+            };
         } else {
             setIsLoading(false);
         }
@@ -142,13 +155,30 @@ export default function TransactionsPage() {
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
                     ) : (
-                        <ExpenseList 
-                            expenses={filteredExpenses} 
-                            showTitle={false} 
-                            showExport={true} 
-                            onExpenseDeleted={handleExpenseDeleted}
-                            onExpenseUpdated={handleExpenseUpdated}
-                        />
+                        <Tabs defaultValue="expenses">
+                            <TabsList>
+                                <TabsTrigger value="expenses">Expenses</TabsTrigger>
+                                <TabsTrigger value="incomes">Incomes</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="expenses">
+                                <ExpenseList 
+                                    expenses={filteredExpenses} 
+                                    showTitle={false} 
+                                    showExport={true} 
+                                    onExpenseDeleted={handleExpenseDeleted}
+                                    onExpenseUpdated={handleExpenseUpdated}
+                                />
+                            </TabsContent>
+                            <TabsContent value="incomes">
+                                <IncomeList 
+                                    incomes={incomes}
+                                    showTitle={false}
+                                    showExport={true}
+                                    onIncomeDeleted={async (id) => { await deleteIncome(id); setIncomes((prev) => prev.filter(i => i.id !== id)); }}
+                                    onIncomeUpdated={async (id, data) => { await updateIncome(id, data); setIncomes((prev) => prev.map(i => i.id === id ? { ...i, ...data, id } as Income : i)); }}
+                                />
+                            </TabsContent>
+                        </Tabs>
                     )}
                 </CardContent>
             </Card>

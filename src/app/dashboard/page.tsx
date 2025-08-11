@@ -18,13 +18,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { PlusCircle } from "lucide-react"
+import { PlusCircle, Banknote } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import { db } from "@/lib/firebase"
 import { collection, query, where, onSnapshot, addDoc, orderBy, limit } from "firebase/firestore"
 import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
 import { deleteExpense, updateExpense } from "@/lib/actions/expenses"
+import { IncomeForm } from "@/components/income/income-form"
+import { type IncomeFormData, type Income } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 
 export default function DashboardPage() {
@@ -32,31 +34,47 @@ export default function DashboardPage() {
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isIncomeFormOpen, setIsIncomeFormOpen] = useState(false);
+    const [incomes, setIncomes] = useState<Income[]>([]);
     const { toast } = useToast();
 
     useEffect(() => {
         if (user) {
             setIsLoading(true);
-            const q = query(
+            const qExpenses = query(
                 collection(db, "expenses"), 
                 where("userId", "==", user.uid), 
                 orderBy("date", "desc"),
             );
-            const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const qIncomes = query(
+                collection(db, "incomes"),
+                where("userId", "==", user.uid),
+                orderBy("date", "desc"),
+            );
+            const unsubExpenses = onSnapshot(qExpenses, (querySnapshot) => {
                 const expensesData: Expense[] = [];
                 querySnapshot.forEach((doc) => {
                     expensesData.push({ id: doc.id, ...doc.data() } as Expense);
                 });
                 setExpenses(expensesData);
                 setIsLoading(false);
-            }, (error) => {
-                console.error("Error fetching expenses: ", error);
+            }, () => setIsLoading(false));
+            const unsubIncomes = onSnapshot(qIncomes, (querySnapshot) => {
+                const incomesData: Income[] = [];
+                querySnapshot.forEach((doc) => {
+                    incomesData.push({ id: doc.id, ...doc.data() } as Income);
+                });
+                setIncomes(incomesData);
                 setIsLoading(false);
-            });
+            }, () => setIsLoading(false));
 
-            return () => unsubscribe();
+            return () => {
+                unsubExpenses();
+                unsubIncomes();
+            }
         } else {
             setExpenses([]);
+            setIncomes([]);
             setIsLoading(false);
         }
     }, [user]);
@@ -72,6 +90,17 @@ export default function DashboardPage() {
             setIsFormOpen(false); // Close the dialog upon successful submission
         } catch (error) {
             console.error("Error adding expense: ", error);
+        }
+    };
+    
+    const handleIncomeAdded = async (newIncomeData: IncomeFormData) => {
+        if (!user) return;
+        try {
+            const incomeWithUser = { ...newIncomeData, userId: user.uid };
+            await addDoc(collection(db, "incomes"), incomeWithUser);
+            setIsIncomeFormOpen(false);
+        } catch (error) {
+            console.error("Error adding income: ", error);
         }
     };
     
@@ -123,26 +152,45 @@ export default function DashboardPage() {
         <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 container mx-auto">
             <div className="flex items-center justify-between">
                 <h1 className="font-headline text-3xl font-semibold">Dashboard</h1>
-                <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Add Expense
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-h-[95vh] overflow-y-auto p-4 sm:p-6">
-                        <DialogHeader className="mb-4">
-                            <DialogTitle>Add New Expense</DialogTitle>
-                            <DialogDescription>
-                                Upload or scan a receipt to automatically extract expense details.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <ExpenseForm onSubmit={handleExpenseAdded} />
-                    </DialogContent>
-                </Dialog>
+                <div className="flex items-center gap-2">
+                    <Dialog open={isIncomeFormOpen} onOpenChange={setIsIncomeFormOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline">
+                                <Banknote className="mr-2 h-4 w-4" />
+                                Add Income
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-h-[95vh] overflow-y-auto p-4 sm:p-6">
+                            <DialogHeader className="mb-4">
+                                <DialogTitle>Add New Income</DialogTitle>
+                                <DialogDescription>
+                                    Record money you received.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <IncomeForm onSubmit={handleIncomeAdded} />
+                        </DialogContent>
+                    </Dialog>
+                    <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+                        <DialogTrigger asChild>
+                            <Button>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Add Expense
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-h-[95vh] overflow-y-auto p-4 sm:p-6">
+                            <DialogHeader className="mb-4">
+                                <DialogTitle>Add New Expense</DialogTitle>
+                                <DialogDescription>
+                                    Upload or scan a receipt to automatically extract expense details.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <ExpenseForm onSubmit={handleExpenseAdded} />
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
             <div className="grid gap-8">
-                <DashboardSummary expenses={expenses} />
+                <DashboardSummary expenses={expenses} incomes={incomes} />
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
                      <div className="lg:col-span-3">
                         <ExpenseList 
