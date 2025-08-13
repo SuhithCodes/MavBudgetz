@@ -79,7 +79,13 @@ export default function DashboardPage() {
         }
     }, [user]);
     
-    const recentExpenses = useMemo(() => expenses.slice(0, 15), [expenses]);
+    const recentExpenses = useMemo(() => expenses.slice(0, 8), [expenses]);
+    const firstExpenseDate = useMemo(() => {
+        if (expenses.length === 0) return undefined;
+        return new Date(
+            Math.min(...expenses.map(e => new Date(e.date).getTime()))
+        );
+    }, [expenses]);
 
     const handleExpenseAdded = async (newExpenseData: ExpenseFormData) => {
         if (!user) return;
@@ -199,7 +205,7 @@ export default function DashboardPage() {
                             onExpenseUpdated={handleExpenseUpdated}
                         />
                         <div className="mt-8">
-                            <SpendingHeatmap expenses={expenses} />
+                            <SpendingHeatmap expenses={expenses} startDate={firstExpenseDate} />
                         </div>
                     </div>
                     <div className="lg:col-span-2 space-y-8">

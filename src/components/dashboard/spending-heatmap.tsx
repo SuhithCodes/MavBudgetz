@@ -10,6 +10,7 @@ import { subYears, format, parse } from 'date-fns';
 
 interface SpendingHeatmapProps {
   expenses: Expense[];
+  startDate?: Date;
 }
 
 const formatCurrency = (value: number) => {
@@ -28,7 +29,7 @@ const panelColors = {
     500: '#6c0012',
 };
 
-export function SpendingHeatmap({ expenses }: SpendingHeatmapProps) {
+export function SpendingHeatmap({ expenses, startDate: initialStartDate }: SpendingHeatmapProps) {
   const [selectedDay, setSelectedDay] = React.useState<{ date: string; expenses: Expense[] } | null>(null);
 
   const heatmapData = React.useMemo(() => {
@@ -42,7 +43,7 @@ export function SpendingHeatmap({ expenses }: SpendingHeatmapProps) {
     return Array.from(dailyTotals.entries()).map(([date, count]) => ({ date, count }));
   }, [expenses]);
 
-  const startDate = subYears(new Date(), 1);
+  const startDate = initialStartDate || subYears(new Date(), 1);
 
   const handleDayClick = (event: React.MouseEvent, data?: any) => {
     // Try to get the date from the event target or data

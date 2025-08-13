@@ -33,6 +33,7 @@ export default function TransactionsPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("all");
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
+    const [selectedMonth, setSelectedMonth] = useState<string>("all");
 
     useEffect(() => {
         if (user) {
@@ -63,17 +64,45 @@ export default function TransactionsPage() {
         return ["all", ...Array.from(categories)];
     }, [expenses]);
 
+    const availableMonths = useMemo(() => {
+        const months = new Set<string>();
+        [...expenses, ...incomes].forEach(transaction => {
+            const month = format(parseISO(transaction.date), 'yyyy-MM');
+            months.add(month);
+        });
+        return ["all", ...Array.from(months).sort().reverse()];
+    }, [expenses, incomes]);
+
     const filteredExpenses = useMemo(() => {
         return expenses.filter(expense => {
             const expenseDate = parseISO(expense.date);
             
             const matchesCategory = selectedCategory === "all" || expense.category === selectedCategory;
             const matchesSearch = expense.vendorName.toLowerCase().includes(searchQuery.toLowerCase());
+            
+            const expenseMonth = format(expenseDate, 'yyyy-MM');
+            const matchesMonth = selectedMonth === 'all' || expenseMonth === selectedMonth;
+
             const matchesDate = !dateRange || (dateRange.from && isWithinInterval(expenseDate, { start: dateRange.from, end: dateRange.to || dateRange.from }));
 
-            return matchesCategory && matchesSearch && matchesDate;
+            return matchesCategory && matchesSearch && matchesDate && matchesMonth;
         });
-    }, [expenses, searchQuery, selectedCategory, dateRange]);
+    }, [expenses, searchQuery, selectedCategory, dateRange, selectedMonth]);
+
+    const filteredIncomes = useMemo(() => {
+        return incomes.filter(income => {
+            const incomeDate = parseISO(income.date);
+            
+            const matchesSearch = income.sourceName.toLowerCase().includes(searchQuery.toLowerCase());
+            
+            const incomeMonth = format(incomeDate, 'yyyy-MM');
+            const matchesMonth = selectedMonth === 'all' || incomeMonth === selectedMonth;
+
+            const matchesDate = !dateRange || (dateRange.from && isWithinInterval(incomeDate, { start: dateRange.from, end: dateRange.to || dateRange.from }));
+
+            return matchesSearch && matchesDate && matchesMonth;
+        });
+    }, [incomes, searchQuery, dateRange, selectedMonth]);
 
     const handleExpenseDeleted = async (expenseId: string) => {
         try {
@@ -101,7 +130,7 @@ export default function TransactionsPage() {
 
             <Card>
                 <CardHeader>
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-4">
                          <div className="relative">
                             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -119,6 +148,18 @@ export default function TransactionsPage() {
                                 {uniqueCategories.map(category => (
                                     <SelectItem key={category} value={category}>
                                         {category === 'all' ? 'All Categories' : category}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Filter by month" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {availableMonths.map(month => (
+                                    <SelectItem key={month} value={month}>
+                                        {month === 'all' ? 'All Months' : format(parseISO(month + '-01'), 'MMMM yyyy')}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -171,7 +212,7 @@ export default function TransactionsPage() {
                             </TabsContent>
                             <TabsContent value="incomes">
                                 <IncomeList 
-                                    incomes={incomes}
+                                    incomes={filteredIncomes}
                                     showTitle={false}
                                     showExport={true}
                                     onIncomeDeleted={async (id) => { await deleteIncome(id); setIncomes((prev) => prev.filter(i => i.id !== id)); }}
