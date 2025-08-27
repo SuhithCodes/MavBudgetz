@@ -130,7 +130,7 @@ export function CategoryChart({ expenses }: CategoryChartProps) {
         </Select>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center justify-center h-[300px] w-full">
+        <div className="flex items-center justify-center h-[350px] w-full">
           <ChartContainer config={config} className="w-full max-w-[360px] h-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
