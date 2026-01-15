@@ -35,7 +35,7 @@ import { IncomeForm } from "@/components/income/income-form"
 import { type IncomeFormData, type Income } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 import { DateRange } from "react-day-picker"
-import { subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns"
+import { subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter } from "date-fns"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { ResponsiveSankey } from "@/components/dashboard/responsive-sankey"
 
@@ -139,11 +139,15 @@ export default function DashboardPage() {
         }
     };
 
-    const setDatePreset = (preset: 'today' | 'thisWeek' | 'lastWeek' | 'last7Days' | 'thisMonth' | 'thisYear') => {
+    const setDatePreset = (preset: 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'last7Days' | 'thisMonth' | 'thisQuarter' | 'thisYear') => {
         const now = new Date();
         switch (preset) {
             case 'today':
                 setDateRange({ from: now, to: now });
+                break;
+            case 'yesterday':
+                const yesterday = subDays(now, 1);
+                setDateRange({ from: yesterday, to: yesterday });
                 break;
             case 'thisWeek':
                 setDateRange({ from: startOfWeek(now), to: endOfWeek(now) });
@@ -158,6 +162,9 @@ export default function DashboardPage() {
                 break;
             case 'thisMonth':
                 setDateRange({ from: startOfMonth(now), to: endOfMonth(now) });
+                break;
+            case 'thisQuarter':
+                setDateRange({ from: startOfQuarter(now), to: endOfQuarter(now) });
                 break;
             case 'thisYear':
                 setDateRange({ from: startOfYear(now), to: endOfYear(now) });
@@ -344,10 +351,12 @@ export default function DashboardPage() {
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuItem onSelect={() => setDatePreset('today')}>Today</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => setDatePreset('yesterday')}>Yesterday</DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => setDatePreset('thisWeek')}>This Week</DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => setDatePreset('lastWeek')}>Last Week</DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => setDatePreset('last7Days')}>Last 7 Days</DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => setDatePreset('thisMonth')}>This Month</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => setDatePreset('thisQuarter')}>This Quarter</DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => setDatePreset('thisYear')}>This Year</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
