@@ -37,6 +37,7 @@ import { useToast } from "@/hooks/use-toast"
 import { DateRange } from "react-day-picker"
 import { subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
+import { ResponsiveSankey } from "@/components/dashboard/responsive-sankey"
 
 export default function DashboardPage() {
     const { user } = useAuth();
@@ -287,7 +288,7 @@ export default function DashboardPage() {
 
     return (
         <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 container mx-auto">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <h1 className="font-headline text-3xl font-semibold">Dashboard</h1>
                 <div className="flex items-center gap-2">
                     <Dialog open={isIncomeFormOpen} onOpenChange={setIsIncomeFormOpen}>
@@ -331,9 +332,9 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
                      <div className="lg:col-span-3">
                         <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                 <CardTitle>Financial Flow</CardTitle>
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                     <DatePickerWithRange date={dateRange} setDate={setDateRange} />
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
@@ -352,12 +353,12 @@ export default function DashboardPage() {
                                     </DropdownMenu>
                                 </div>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="h-[400px] w-full p-0">
                                 {sankeyData.nodes.length > 1 && sankeyData.links.length > 0 ? (
-                                    <SankeyDiagram data={sankeyData} width={700} height={400} />
+                                    <ResponsiveSankey data={sankeyData} height={400} />
                                 ) : (
-                                    <div className="flex items-center justify-center h-[400px] text-muted-foreground">
-                                        <p>No data for this period. Try adjusting the date filter.</p>
+                                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                                        <p className="text-center">No data for this period. <br /> Try adjusting the date filter.</p>
                                     </div>
                                 )}
                             </CardContent>
