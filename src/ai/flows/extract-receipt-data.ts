@@ -59,7 +59,7 @@ Use the following as the primary source of information about the receipt.
 Photo: {{media url=photoDataUri}}
 
 For the expense 'category', you MUST choose one of the following predefined categories:
-{{JSON.stringify(EXPENSE_CATEGORIES)}}
+${JSON.stringify(EXPENSE_CATEGORIES)}
 
 When extracting data from a valid receipt, pay close attention to the format requirements for each field. For the currency, you MUST return a three-letter ISO 4217 currency code (e.g., USD, EUR, JPY). It is critical that you do not use currency symbols like $ or €. Only use the three-letter code.
 
