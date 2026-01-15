@@ -1,13 +1,23 @@
 "use client"
 
 import { useState } from "react"
-import { FileDown, Pencil, Trash2, AlertTriangle } from "lucide-react"
+import { MoreHorizontal, FileDown, Pencil, Trash2 } from "lucide-react"
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
@@ -16,16 +26,15 @@ import { CategoryIcon } from "@/components/expenses/category-icon"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ExpenseForm } from "./expense-form"
+import { Badge } from "@/components/ui/badge"
 
 interface ExpenseListProps {
   expenses: Expense[];
-  showTitle?: boolean;
-  showExport?: boolean;
   onExpenseDeleted?: (expenseId: string) => Promise<void>;
   onExpenseUpdated?: (expenseId: string, data: ExpenseFormData) => Promise<void>;
 }
 
-export function ExpenseList({ expenses, showTitle = true, showExport = true, onExpenseDeleted, onExpenseUpdated }: ExpenseListProps) {
+export function ExpenseList({ expenses, onExpenseDeleted, onExpenseUpdated }: ExpenseListProps) {
   const { toast } = useToast();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -55,236 +64,62 @@ export function ExpenseList({ expenses, showTitle = true, showExport = true, onE
     }
   };
 
-  const getSafeCurrencyCode = (code?: string): string => {
-    const defaultCurrency = "USD";
-    if (!code) {
-      return defaultCurrency;
-    }
-    try {
-      new Intl.NumberFormat("en-US", { style: "currency", currency: code });
-      return code;
-    } catch (e) {
-      if (code === "$") return "USD";
-      if (code === "€") return "EUR";
-      if (code === "£") return "GBP";
-      return defaultCurrency;
-    }
-  };
-
-  const handleExport = () => {
-    if (expenses.length === 0) {
-      toast({
-        title: "No Data",
-        description: "There are no expenses to export.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const headers = [
-      "id", "vendorName", "date", "time", "totalAmount", "currency", 
-      "category", "subtotal", "taxes", "paymentMethod", "lineItems", "confidence"
-    ];
-
-    const escapeCSV = (value: any) => {
-      if (value === null || value === undefined) return '';
-      let str = String(value);
-      if (Array.isArray(value)) {
-        str = value.join('; ');
-      }
-      if (str.search(/("|,|\n)/g) >= 0) {
-        str = `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
-    };
-
-    const csvRows = [headers.join(',')];
-
-    for (const expense of expenses) {
-      const values = headers.map(header => {
-        const key = header as keyof Expense;
-        return escapeCSV(expense[key]);
-      });
-      csvRows.push(values.join(','));
-    }
-
-    const csvString = csvRows.join('\n');
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'expenses.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: "Export Successful",
-      description: "Your expenses have been downloaded as a CSV file.",
-    })
-  };
-
-  // Outlier detection logic
-  const categoryStats = (() => {
-    const stats: Record<string, { mean: number; std: number }> = {};
-    const grouped: Record<string, number[]> = {};
-    for (const exp of expenses) {
-      if (!grouped[exp.category]) grouped[exp.category] = [];
-      grouped[exp.category].push(exp.totalAmount);
-    }
-    for (const cat in grouped) {
-      const arr = grouped[cat];
-      const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
-      const std = Math.sqrt(arr.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / arr.length);
-      stats[cat] = { mean, std };
-    }
-    return stats;
-  })();
-
-  const isOutlier = (expense: Expense) => {
-    const stats = categoryStats[expense.category];
-    if (!stats || stats.std === 0) return false;
-    return expense.totalAmount > stats.mean + 2 * stats.std;
-  };
-
-
   return (
     <>
         <Card>
-            {showTitle && (
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle>Recent Expenses</CardTitle>
-                        <CardDescription>A list of your most recent transactions.</CardDescription>
-                    </div>
-                    {showExport && (
-                        <Button variant="outline" size="sm" onClick={handleExport}>
-                            <FileDown className="h-4 w-4" />
-                            <span className="ml-2 hidden sm:inline">Export</span>
-                        </Button>
-                    )}
-                </CardHeader>
-            )}
-            <CardContent className={!showTitle ? 'pt-6' : ''}>
-                {expenses.length > 0 ? (
-                <Accordion type="single" collapsible className="w-full space-y-3">
-                    {expenses.map((expense) => (
-                    <AccordionItem value={expense.id} key={expense.id} className="border-b-0">
-                        <div className={`rounded-md border px-4 transition-all hover:bg-muted/50 ${isOutlier(expense) ? 'border-yellow-500 bg-yellow-50' : ''}`}>
-                        <AccordionTrigger className="py-0 hover:no-underline">
-                            <div className="flex items-center gap-4 py-4 w-full">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                                    <CategoryIcon category={expense.category} className="h-5 w-5 text-muted-foreground" />
-                                </div>
-                                <div className="grid gap-1 text-left">
-                                    <div className="font-semibold flex items-center gap-2">
-                                        {expense.vendorName}
-                                        {isOutlier(expense) && (
-                                            <span className="inline-flex items-center text-yellow-700 text-xs font-bold ml-1">
-                                                <AlertTriangle className="h-4 w-4 mr-1 text-yellow-700" />
-                                                Outlier
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="text-sm text-muted-foreground">
-                                        {new Date(expense.date + 'T00:00:00').toLocaleDateString('en-US', {
-                                            year: 'numeric',
-                                            month: 'long',
-                                            day: 'numeric',
-                                        })}
-                                    </div>
-                                </div>
-                                <div className="ml-auto text-right">
-                                    <div className="font-bold">
-                                        {new Intl.NumberFormat("en-US", {
-                                            style: "currency",
-                                            currency: getSafeCurrencyCode(expense.currency),
-                                        }).format(expense.totalAmount)}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">{expense.category}</div>
-                                </div>
-                            </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="pl-14 pr-4">
-                            <p className="text-sm text-muted-foreground">
-                                Paid with {expense.paymentMethod} at {expense.time}.
-                            </p>
-                            {expense.lineItems && expense.lineItems.length > 0 && (
-                                 <div className="mt-4 pt-4 border-t">
-                                    <h4 className="text-sm font-semibold mb-2">Line Items</h4>
-                                    <ul className="space-y-1.5 text-sm text-muted-foreground">
-                                        {expense.lineItems.map((item, index) => (
-                                            <li key={index} className="flex justify-between items-center">
-                                                <span>{item.name}</span>
-                                                <span className="font-mono">{new Intl.NumberFormat("en-US", {
-                                                    style: "currency",
-                                                    currency: getSafeCurrencyCode(expense.currency),
-                                                }).format(item.amount)}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                            {(typeof expense.subtotal === 'number' || typeof expense.taxes === 'number') && (
-                                <div className="pt-3 mt-3 border-t">
-                                    <div className="space-y-1.5 text-sm">
-                                        {typeof expense.subtotal === 'number' && (
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-muted-foreground">Subtotal</span>
-                                                <span className="font-mono">
-                                                    {new Intl.NumberFormat("en-US", {
-                                                        style: "currency",
-                                                        currency: getSafeCurrencyCode(expense.currency),
-                                                    }).format(expense.subtotal)}
-                                                </span>
-                                            </div>
-                                        )}
-                                        {typeof expense.taxes === 'number' && (
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-muted-foreground">Taxes</span>
-                                                <span className="font-mono">
-                                                    {new Intl.NumberFormat("en-US", {
-                                                        style: "currency",
-                                                        currency: getSafeCurrencyCode(expense.currency),
-                                                    }).format(expense.taxes)}
-                                                </span>
-                                            </div>
-                                        )}
-                                        <div className="flex justify-between items-center font-bold pt-1.5 mt-1.5 border-t">
-                                            <span>Total</span>
-                                            <span className="font-mono">
-                                                {new Intl.NumberFormat("en-US", {
-                                                    style: "currency",
-                                                    currency: getSafeCurrencyCode(expense.currency),
-                                                }).format(expense.totalAmount)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-                                <Button variant="outline" size="sm" onClick={() => openEditDialog(expense)}>
-                                    <Pencil className="h-4 w-4 mr-2" />
-                                    Edit
-                                </Button>
-                                <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(expense)}>
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete
-                                </Button>
-                            </div>
-                        </AccordionContent>
-                        </div>
-                    </AccordionItem>
-                    ))}
-                </Accordion>
-                ) : (
-                <div className="flex h-24 items-center justify-center rounded-md border border-dashed">
-                    <p className="text-muted-foreground">No expenses recorded yet.</p>
-                </div>
-                )}
+            <CardHeader>
+                <CardTitle>Recent Expenses</CardTitle>
+                <CardDescription>A list of your most recent transactions.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Vendor</TableHead>
+                            <TableHead>Category</TableHead>
+                            <TableHead className="hidden md:table-cell">Date</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                            <TableHead className="w-12">
+                                <span className="sr-only">Actions</span>
+                            </TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {expenses.length > 0 ? (
+                            expenses.map(expense => (
+                                <TableRow key={expense.id}>
+                                    <TableCell className="font-medium max-w-[150px] whitespace-normal break-words">{expense.vendorName}</TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline">{expense.category}</Badge>
+                                    </TableCell>
+                                    <TableCell className="hidden md:table-cell">{new Date(expense.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</TableCell>
+                                    <TableCell className="text-right">{new Intl.NumberFormat("en-US", { style: "currency", currency: expense.currency || 'USD' }).format(expense.totalAmount)}</TableCell>
+                                    <TableCell>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                    <span className="sr-only">Toggle menu</span>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                <DropdownMenuItem onSelect={() => openEditDialog(expense)}>Edit</DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => openDeleteDialog(expense)}>Delete</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={5} className="h-24 text-center">
+                                    No expenses recorded yet.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
             </CardContent>
         </Card>
 

@@ -3,11 +3,8 @@
 import { useState, useEffect, useMemo } from "react"
 import { ExpenseForm } from "@/components/expenses/expense-form"
 import { ExpenseList } from "@/components/expenses/expense-list"
-import { CategoryChart } from "@/components/dashboard/category-chart"
 import { DashboardSummary } from "@/components/dashboard/dashboard-summary"
-import { MonthlySpendChart } from "@/components/dashboard/monthly-spend-chart"
-import { TopVendorsChart } from "@/components/dashboard/top-vendors-chart"
-import { SpendingHeatmap } from "@/components/dashboard/spending-heatmap"
+import { SankeyDiagram, type SankeyData } from "@/components/dashboard/sankey-diagram";
 import { type Expense, type ExpenseFormData } from "@/types"
 import {
   Dialog,
@@ -17,17 +14,29 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Banknote } from "lucide-react"
+import { PlusCircle, Banknote, Calendar as CalendarIcon } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import { db } from "@/lib/firebase"
-import { collection, query, where, onSnapshot, addDoc, orderBy, limit } from "firebase/firestore"
+import { collection, query, where, onSnapshot, addDoc, orderBy } from "firebase/firestore"
 import { Skeleton } from "@/components/ui/skeleton"
-import Link from "next/link"
 import { deleteExpense, updateExpense } from "@/lib/actions/expenses"
 import { IncomeForm } from "@/components/income/income-form"
 import { type IncomeFormData, type Income } from "@/types"
 import { useToast } from "@/hooks/use-toast"
+import { DateRange } from "react-day-picker"
+import { subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns"
+import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 
 export default function DashboardPage() {
     const { user } = useAuth();
@@ -37,6 +46,11 @@ export default function DashboardPage() {
     const [isIncomeFormOpen, setIsIncomeFormOpen] = useState(false);
     const [incomes, setIncomes] = useState<Income[]>([]);
     const { toast } = useToast();
+    const [dateRange, setDateRange] = useState<DateRange | undefined>({
+        from: startOfMonth(new Date()),
+        to: endOfMonth(new Date()),
+    });
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -79,13 +93,7 @@ export default function DashboardPage() {
         }
     }, [user]);
     
-    const recentExpenses = useMemo(() => expenses.slice(0, 8), [expenses]);
-    const firstExpenseDate = useMemo(() => {
-        if (expenses.length === 0) return undefined;
-        return new Date(
-            Math.min(...expenses.map(e => new Date(e.date).getTime()))
-        );
-    }, [expenses]);
+    const recentExpenses = useMemo(() => expenses.slice(0, 5), [expenses]);
 
     const handleExpenseAdded = async (newExpenseData: ExpenseFormData) => {
         if (!user) return;
@@ -93,7 +101,7 @@ export default function DashboardPage() {
         try {
             const expenseWithUser = { ...newExpenseData, userId: user.uid };
             await addDoc(collection(db, "expenses"), expenseWithUser);
-            setIsFormOpen(false); // Close the dialog upon successful submission
+            setIsFormOpen(false);
         } catch (error) {
             console.error("Error adding expense: ", error);
         }
@@ -130,6 +138,131 @@ export default function DashboardPage() {
         }
     };
 
+    const setDatePreset = (preset: 'today' | 'thisWeek' | 'lastWeek' | 'last7Days' | 'thisMonth' | 'thisYear') => {
+        const now = new Date();
+        switch (preset) {
+            case 'today':
+                setDateRange({ from: now, to: now });
+                break;
+            case 'thisWeek':
+                setDateRange({ from: startOfWeek(now), to: endOfWeek(now) });
+                break;
+            case 'lastWeek':
+                const lastWeekStart = startOfWeek(subDays(now, 7));
+                const lastWeekEnd = endOfWeek(subDays(now, 7));
+                setDateRange({ from: lastWeekStart, to: lastWeekEnd });
+                break;
+            case 'last7Days':
+                setDateRange({ from: subDays(now, 6), to: now });
+                break;
+            case 'thisMonth':
+                setDateRange({ from: startOfMonth(now), to: endOfMonth(now) });
+                break;
+            case 'thisYear':
+                setDateRange({ from: startOfYear(now), to: endOfYear(now) });
+                break;
+        }
+    };
+
+    const filteredExpenses = useMemo(() => {
+        if (!dateRange?.from) return expenses;
+        const fromDate = dateRange.from;
+        const toDate = dateRange.to || dateRange.from; // If no 'to' date, use 'from' date for single day selection
+        return expenses.filter(expense => {
+            const expenseDate = new Date(expense.date + 'T00:00:00');
+            return expenseDate >= fromDate && expenseDate <= toDate;
+        });
+    }, [expenses, dateRange]);
+
+    const filteredIncomes = useMemo(() => {
+        if (!dateRange?.from) return incomes;
+        const fromDate = dateRange.from;
+        const toDate = dateRange.to || dateRange.from;
+        return incomes.filter(income => {
+            const incomeDate = new Date(income.date + 'T00:00:00');
+            return incomeDate >= fromDate && incomeDate <= toDate;
+        });
+    }, [incomes, dateRange]);
+
+    const sankeyData = useMemo((): SankeyData => {
+        const PARENT_CATEGORIES = {
+            'Needs': ["Housing", "Transportation", "Food", "Utilities", "Healthcare"],
+            'Wants': ["Personal Care", "Entertainment", "Shopping"],
+            'Financial Goals': ["Debt Payments", "Savings & Investments"],
+            'Other': ["Miscellaneous"]
+        };
+
+        const nodes: { nodeId: string; name: string }[] = [];
+        const links: { source: string; target: string; value: number }[] = [];
+
+        const totalIncome = filteredIncomes.reduce((acc, income) => acc + income.amount, 0);
+
+        if (totalIncome > 0) {
+            nodes.push({ nodeId: "total-income", name: "Total Income" });
+
+            const incomeBySource: { [key: string]: number } = {};
+            filteredIncomes.forEach(income => {
+                const source = income.sourceName || 'Other Income';
+                if (incomeBySource[source]) {
+                    incomeBySource[source] += income.amount;
+                } else {
+                    incomeBySource[source] = income.amount;
+                }
+            });
+
+            for (const source in incomeBySource) {
+                nodes.push({ nodeId: source, name: source });
+                links.push({ source: source, target: "total-income", value: incomeBySource[source] });
+            }
+        }
+
+        const expenseByCategory: { [key: string]: number } = {};
+        filteredExpenses.forEach(expense => {
+            const amount = expense.totalAmount || 0;
+            if (expenseByCategory[expense.category]) {
+                expenseByCategory[expense.category] += amount;
+            } else {
+                expenseByCategory[expense.category] = amount;
+            }
+        });
+
+        const parentCategoryTotals: { [key: string]: number } = {};
+        for (const parent in PARENT_CATEGORIES) {
+            parentCategoryTotals[parent] = 0;
+            for (const child of PARENT_CATEGORIES[parent as keyof typeof PARENT_CATEGORIES]) {
+                if (expenseByCategory[child]) {
+                    parentCategoryTotals[parent] += expenseByCategory[child];
+                }
+            }
+        }
+        
+        for (const parent in parentCategoryTotals) {
+            if (parentCategoryTotals[parent] > 0) {
+                nodes.push({ nodeId: parent, name: parent });
+                links.push({ source: "total-income", target: parent, value: parentCategoryTotals[parent] });
+
+                for (const child of PARENT_CATEGORIES[parent as keyof typeof PARENT_CATEGORIES]) {
+                    if (expenseByCategory[child]) {
+                        nodes.push({ nodeId: child, name: child });
+                        links.push({ source: parent, target: child, value: expenseByCategory[child] });
+                    }
+                }
+            }
+        }
+        
+        const totalExpenses = Object.values(expenseByCategory).reduce((acc, amount) => acc + amount, 0);
+        const savings = totalIncome - totalExpenses;
+        
+        if (savings > 0) {
+            nodes.push({ nodeId: "Savings", name: "Savings" });
+            links.push({ source: "total-income", target: "Savings", value: savings });
+        }
+        
+        const uniqueNodes = Array.from(new Map(nodes.map(item => [item.nodeId, item])).values());
+
+        return { nodes: uniqueNodes, links };
+    }, [filteredIncomes, filteredExpenses]);
+
     if (isLoading) {
         return (
              <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 container mx-auto">
@@ -145,8 +278,6 @@ export default function DashboardPage() {
                 <div className="grid gap-8 lg:grid-cols-5">
                     <Skeleton className="lg:col-span-3 h-[500px]" />
                     <div className="lg:col-span-2 grid gap-8 auto-rows-min">
-                        <Skeleton className="h-80" />
-                        <Skeleton className="h-80" />
                         <Skeleton className="h-80" />
                     </div>
                 </div>
@@ -199,19 +330,45 @@ export default function DashboardPage() {
                 <DashboardSummary expenses={expenses} incomes={incomes} />
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
                      <div className="lg:col-span-3">
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle>Financial Flow</CardTitle>
+                                <div className="flex items-center gap-2">
+                                    <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="outline" className="flex items-center gap-2">
+                                                <span>Presets</span>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onSelect={() => setDatePreset('today')}>Today</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => setDatePreset('thisWeek')}>This Week</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => setDatePreset('lastWeek')}>Last Week</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => setDatePreset('last7Days')}>Last 7 Days</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => setDatePreset('thisMonth')}>This Month</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => setDatePreset('thisYear')}>This Year</DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                {sankeyData.nodes.length > 1 && sankeyData.links.length > 0 ? (
+                                    <SankeyDiagram data={sankeyData} width={700} height={400} />
+                                ) : (
+                                    <div className="flex items-center justify-center h-[400px] text-muted-foreground">
+                                        <p>No data for this period. Try adjusting the date filter.</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                    <div className="lg:col-span-2">
                         <ExpenseList 
                             expenses={recentExpenses}
                             onExpenseDeleted={handleExpenseDeleted}
                             onExpenseUpdated={handleExpenseUpdated}
                         />
-                        <div className="mt-8">
-                            <SpendingHeatmap expenses={expenses} startDate={firstExpenseDate} />
-                        </div>
-                    </div>
-                    <div className="lg:col-span-2 space-y-8">
-                        <CategoryChart expenses={expenses} />
-                        <MonthlySpendChart expenses={expenses} />
-                        <TopVendorsChart expenses={expenses} />
                     </div>
                 </div>
             </div>

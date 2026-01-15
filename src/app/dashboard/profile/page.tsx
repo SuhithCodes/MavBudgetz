@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,25 +8,35 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CategoryManager } from "@/components/settings/category-manager"
-import { useAuth } from "@/context/auth-context"
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/context/auth-context";
 import { useState, useEffect } from "react";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { getExpenses } from '@/lib/actions/expenses';
+import { getExpenses, deleteAllExpenses } from '@/lib/actions/expenses';
+import { deleteAllIncomes } from '@/lib/actions/incomes';
 import { saveAs } from 'file-saver';
 import { getSavingsGoals } from '@/lib/actions/savings-goals';
 import { getBudgets } from '@/lib/actions/budgets';
 import { marked } from 'marked';
 import html2pdf from 'html2pdf.js';
 import { endOfMonth, startOfMonth, format as formatDate } from 'date-fns';
-
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface UserPreferences {
     emailNotifications: boolean;
@@ -69,7 +79,6 @@ export default function SettingsPage() {
         }
     };
 
-  // CSV export logic
   const handleExportExpensesCSV = async () => {
     if (!user) return;
     const expenses = await getExpenses(user.uid);
@@ -106,7 +115,6 @@ export default function SettingsPage() {
     toast({ title: 'Export Successful', description: 'Your expenses have been downloaded as a CSV file.' });
   };
 
-  // AI Summary Report logic
   const handleSummaryReport = async () => {
     if (!user) return;
     const now = new Date();
@@ -117,9 +125,7 @@ export default function SettingsPage() {
       getSavingsGoals(user.uid),
       getBudgets(user.uid),
     ]);
-    // Filter expenses for current month
     const monthExpenses = expenses.filter(e => e.date >= formatDate(start, 'yyyy-MM-dd') && e.date <= formatDate(end, 'yyyy-MM-dd'));
-    // Beautified Markdown generation
     let md = `# 📊 **Monthly Financial Summary**\n\n`;
     md += `---\n`;
     md += `**Period:** _${formatDate(start, 'MMM dd, yyyy')} - ${formatDate(end, 'MMM dd, yyyy')}_\n\n`;
@@ -162,7 +168,6 @@ export default function SettingsPage() {
     md += `- **Number of transactions:** ${monthExpenses.length}\n`;
     md += `- **Number of savings goals:** ${goals.length}\n`;
     md += `- **Number of budgets:** ${budgets.length}\n`;
-    // Custom CSS for PDF styling
     const customCSS = `
       <style>
         body { font-family: 'Alegreya', serif; color: #222; background: #fff; }
@@ -182,24 +187,46 @@ export default function SettingsPage() {
         .analytics-list li { margin-bottom: 0.2em; }
       </style>
     `;
-    // Convert markdown to HTML
     const html = customCSS + marked.parse(md);
-    // Convert HTML to PDF and save
     html2pdf().from(html).set({ filename: 'summary-report.pdf' }).save();
     toast({ title: 'Summary Report Generated', description: 'Your summary report PDF is downloading.' });
   };
 
+  const handleClearExpenses = async () => {
+    if (!user) return;
+    const result = await deleteAllExpenses(user.uid);
+    if (result.success) {
+      toast({ title: 'Success', description: 'All expenses have been cleared.' });
+      window.location.reload();
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.error });
+    }
+  };
+
+  const handleClearAllData = async () => {
+    if (!user) return;
+    const [expensesResult, incomesResult] = await Promise.all([
+        deleteAllExpenses(user.uid),
+        deleteAllIncomes(user.uid)
+    ]);
+
+    if (expensesResult.success && incomesResult.success) {
+      toast({ title: 'Success', description: 'All financial data has been cleared.' });
+      window.location.reload();
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not clear all data.' });
+    }
+  };
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 container mx-auto">
       <h1 className="font-headline text-3xl font-semibold">Settings</h1>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full max-w-lg grid-cols-5 mb-6">
+        <TabsList className="grid w-full max-w-lg grid-cols-4 mb-6">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="password">Password</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
         </TabsList>
 
@@ -301,10 +328,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="categories">
-            <CategoryManager />
-        </TabsContent>
-
         <TabsContent value="data">
           <Card className="max-w-3xl">
             <CardHeader>
@@ -318,6 +341,57 @@ export default function SettingsPage() {
               <Button className="w-full" onClick={handleSummaryReport}>
                 Summary Report (AI PDF)
               </Button>
+            </CardContent>
+          </Card>
+          <Card className="max-w-3xl mt-6 border-destructive">
+            <CardHeader>
+                <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                <CardDescription>These actions are permanent and cannot be undone.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="w-full">
+                            Clear All Expenses
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete all of your **expense** data.
+                        </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleClearExpenses}>
+                            Continue
+                        </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="w-full">
+                            Clear All Data (Expenses & Incomes)
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete all of your **expense and income** data.
+                        </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleClearAllData}>
+                            Continue
+                        </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </CardContent>
           </Card>
         </TabsContent>

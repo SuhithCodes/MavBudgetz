@@ -1,24 +1,38 @@
 "use client"
 
-import { useState } from "react";
-import { Pencil, Trash2, FileDown } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { type Income, type IncomeFormData } from "@/types";
-import { useToast } from "@/hooks/use-toast";
-import { IncomeForm } from "./income-form";
+import { useState } from "react"
+import { MoreHorizontal } from "lucide-react"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useToast } from "@/hooks/use-toast"
+import { type Income, type IncomeFormData } from "@/types"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { IncomeForm } from "./income-form"
+import { Badge } from "@/components/ui/badge"
 
 interface IncomeListProps {
   incomes: Income[];
-  showTitle?: boolean;
-  showExport?: boolean;
   onIncomeDeleted?: (incomeId: string) => Promise<void>;
   onIncomeUpdated?: (incomeId: string, data: IncomeFormData) => Promise<void>;
 }
 
-export function IncomeList({ incomes, showTitle = true, showExport = true, onIncomeDeleted, onIncomeUpdated }: IncomeListProps) {
+export function IncomeList({ incomes, onIncomeDeleted, onIncomeUpdated }: IncomeListProps) {
   const { toast } = useToast();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -28,7 +42,7 @@ export function IncomeList({ incomes, showTitle = true, showExport = true, onInc
     setSelectedIncome(income);
     setIsDeleteDialogOpen(true);
   };
-
+  
   const openEditDialog = (income: Income) => {
     setSelectedIncome(income);
     setIsEditDialogOpen(true);
@@ -43,118 +57,96 @@ export function IncomeList({ incomes, showTitle = true, showExport = true, onInc
 
   const handleUpdate = async (data: IncomeFormData) => {
     if (selectedIncome && onIncomeUpdated) {
-      await onIncomeUpdated(selectedIncome.id, data);
-      setIsEditDialogOpen(false);
+        await onIncomeUpdated(selectedIncome.id, data);
+        setIsEditDialogOpen(false);
     }
-  };
-
-  const exportCSV = () => {
-    if (incomes.length === 0) {
-      toast({ title: "No Data", description: "There are no incomes to export.", variant: "destructive" });
-      return;
-    }
-    const headers = ["id", "sourceName", "date", "amount", "currency", "note"];
-    const escapeCSV = (value: any) => {
-      if (value === null || value === undefined) return '';
-      let str = String(value);
-      if (str.search(/("|,|\n)/g) >= 0) {
-        str = `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
-    };
-    const csvRows = [headers.join(',')];
-    for (const inc of incomes) {
-      const values = headers.map((h) => escapeCSV((inc as any)[h]));
-      csvRows.push(values.join(','));
-    }
-    const csvString = csvRows.join('\n');
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'incomes.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    toast({ title: "Export Successful", description: "Your incomes have been downloaded as CSV." });
   };
 
   return (
-    <Card>
-      {showTitle && (
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Recent Incomes</CardTitle>
-            <CardDescription>Your recorded income entries.</CardDescription>
-          </div>
-          {showExport && (
-            <Button variant="outline" size="sm" onClick={exportCSV}>
-              <FileDown className="h-4 w-4" />
-              <span className="ml-2 hidden sm:inline">Export</span>
-            </Button>
-          )}
-        </CardHeader>
-      )}
-      <CardContent>
-        {incomes.length > 0 ? (
-          <div className="divide-y rounded-md border">
-            {incomes.map((income) => (
-              <div key={income.id} className="flex items-center justify-between px-4 py-3">
-                <div className="space-y-0.5">
-                  <div className="font-semibold">{income.sourceName}</div>
-                  <div className="text-xs text-muted-foreground">{new Date(income.date + 'T00:00:00').toLocaleDateString('en-US')}</div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="font-mono font-semibold">
-                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: income.currency || 'USD' }).format(income.amount)}
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => openEditDialog(income)}>
-                    <Pencil className="h-4 w-4 mr-2" /> Edit
-                  </Button>
-                  <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(income)}>
-                    <Trash2 className="h-4 w-4 mr-2" /> Delete
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="flex h-24 items-center justify-center rounded-md border border-dashed">
-            <p className="text-muted-foreground">No incomes recorded yet.</p>
-          </div>
-        )}
-      </CardContent>
+    <>
+        <Card>
+            <CardHeader>
+                <CardTitle>Recent Incomes</CardTitle>
+                <CardDescription>A list of your most recent income records.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Source</TableHead>
+                            <TableHead className="hidden md:table-cell">Date</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                            <TableHead className="w-12">
+                                <span className="sr-only">Actions</span>
+                            </TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {incomes.length > 0 ? (
+                            incomes.map(income => (
+                                <TableRow key={income.id}>
+                                    <TableCell className="font-medium">{income.sourceName}</TableCell>
+                                    <TableCell className="hidden md:table-cell">{new Date(income.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</TableCell>
+                                    <TableCell className="text-right">{new Intl.NumberFormat("en-US", { style: "currency", currency: income.currency || 'USD' }).format(income.amount)}</TableCell>
+                                    <TableCell>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                    <span className="sr-only">Toggle menu</span>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                <DropdownMenuItem onSelect={() => openEditDialog(income)}>Edit</DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => openDeleteDialog(income)}>Delete</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={4} className="h-24 text-center">
+                                    No incomes recorded yet.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the income from {selectedIncome?.sourceName}.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the income from {selectedIncome?.sourceName}.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
 
-      {/* Edit Income Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Income</DialogTitle>
-          </DialogHeader>
-          {selectedIncome && (
-            <IncomeForm onSubmit={handleUpdate} initialData={selectedIncome} />
-          )}
-        </DialogContent>
-      </Dialog>
-    </Card>
-  );
+        {/* Edit Income Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Edit Income</DialogTitle>
+                </DialogHeader>
+                {selectedIncome && (
+                    <IncomeForm 
+                        onSubmit={handleUpdate} 
+                        initialData={selectedIncome} 
+                    />
+                )}
+            </DialogContent>
+        </Dialog>
+    </>
+  )
 }
-

@@ -17,6 +17,15 @@ import { cn } from "@/lib/utils"
 import { type Expense, type ExpenseFormData, expenseFormSchema, type ProcessedReceiptData } from "@/types"
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { EXPENSE_CATEGORIES } from "@/lib/constants";
+import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -275,15 +284,30 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
                     )}
                 </div>
                 <div className="space-y-1.5">
-                    <Label htmlFor="category">Category *</Label>
-                    <Input 
-                        id="category" 
-                        {...form.register("category")}
-                        placeholder="e.g., Groceries, Entertainment"
+                    <FormField
+                        control={form.control}
+                        name="category"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Category *</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a category" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {EXPENSE_CATEGORIES.map((category) => (
+                                            <SelectItem key={category} value={category}>
+                                                {category}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
                     />
-                    {form.formState.errors.category && (
-                        <p className="text-sm text-destructive">{form.formState.errors.category.message}</p>
-                    )}
                 </div>
             </div>
 
@@ -451,84 +475,86 @@ export function ExpenseForm({ onSubmit: onExpenseSubmit, initialData }: ExpenseF
     );
 
     return (
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <Tabs defaultValue="upload" className="w-full" onValueChange={handleTabChange}>
-                <TabsList className={cn("grid w-full", isMobile ? "grid-cols-2" : "grid-cols-3")}>
-                    <TabsTrigger value="upload" className="text-sm">Upload File</TabsTrigger>
-                    {!isMobile && <TabsTrigger value="camera" className="text-sm">Scan Receipt</TabsTrigger>}
-                    <TabsTrigger value="manual" className="text-sm">Manual Entry</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="upload">
-                    {!processedData ? (
-                        <div className="relative mt-4">
-                            <Label htmlFor="receipt-upload" className={cn(
-                                "flex flex-col items-center justify-center w-full h-48 sm:h-64 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
-                                isProcessing && "cursor-wait bg-muted/50"
-                            )}>
-                                {isProcessing ? (
-                                    <>
-                                        <Loader2 className="h-8 w-8 sm:h-10 sm:w-10 animate-spin text-primary" />
-                                        <p className="mt-4 text-sm text-muted-foreground">Analyzing your receipt...</p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <UploadCloud className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground" />
-                                        <p className="mt-4 text-sm text-muted-foreground">
-                                            <span className="font-semibold text-primary">Click to upload</span> or drag and drop
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">PNG, JPG or PDF</p>
-                                    </>
-                                )}
-                            </Label>
-                            <Input ref={fileInputRef} id="receipt-upload" type="file" className="sr-only" onChange={handleFileChange} accept="image/png, image/jpeg, application/pdf" disabled={isProcessing} />
-                        </div>
-                    ) : (
-                        <ExpenseFields />
-                    )}
-                </TabsContent>
-
-                {!isMobile && (
-                    <TabsContent value="camera">
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                <Tabs defaultValue="upload" className="w-full" onValueChange={handleTabChange}>
+                    <TabsList className={cn("grid w-full", isMobile ? "grid-cols-2" : "grid-cols-3")}>
+                        <TabsTrigger value="upload" className="text-sm">Upload File</TabsTrigger>
+                        {!isMobile && <TabsTrigger value="camera" className="text-sm">Scan Receipt</TabsTrigger>}
+                        <TabsTrigger value="manual" className="text-sm">Manual Entry</TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="upload">
                         {!processedData ? (
-                            <div className="mt-4 space-y-4">
-                                <div className="w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center aspect-video">
-                                    <video ref={videoRef} className={cn("w-full h-full object-cover", { 'hidden': hasCameraPermission !== true })} autoPlay muted playsInline />
-                                    {hasCameraPermission === false && (
-                                         <div className="p-4">
-                                            <Alert variant="destructive">
-                                                <AlertTitle>Camera Access Required</AlertTitle>
-                                                <AlertDescription>
-                                                    Please allow camera access in your browser to use this feature. You may need to refresh the page.
-                                                </AlertDescription>
-                                            </Alert>
-                                         </div>
+                            <div className="relative mt-4">
+                                <Label htmlFor="receipt-upload" className={cn(
+                                    "flex flex-col items-center justify-center w-full h-48 sm:h-64 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
+                                    isProcessing && "cursor-wait bg-muted/50"
+                                )}>
+                                    {isProcessing ? (
+                                        <>
+                                            <Loader2 className="h-8 w-8 sm:h-10 sm:w-10 animate-spin text-primary" />
+                                            <p className="mt-4 text-sm text-muted-foreground">Analyzing your receipt...</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <UploadCloud className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground" />
+                                            <p className="mt-4 text-sm text-muted-foreground">
+                                                <span className="font-semibold text-primary">Click to upload</span> or drag and drop
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">PNG, JPG or PDF</p>
+                                        </>
                                     )}
-                                    {hasCameraPermission === undefined && !isProcessing && (
-                                        <div className="flex flex-col items-center gap-2">
-                                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                                            <p className="text-muted-foreground">Requesting camera...</p>
-                                        </div>
-                                    )}
-                                </div>
-                                <Button type="button" className="w-full" onClick={handleCapture} disabled={!hasCameraPermission || isProcessing}>
-                                    <Camera className="mr-2 h-4 w-4" />
-                                    {isProcessing ? 'Capturing...' : 'Capture Photo'}
-                                </Button>
-                                <canvas ref={canvasRef} className="hidden"></canvas>
+                                </Label>
+                                <Input ref={fileInputRef} id="receipt-upload" type="file" className="sr-only" onChange={handleFileChange} accept="image/png, image/jpeg, application/pdf" disabled={isProcessing} />
                             </div>
                         ) : (
                             <ExpenseFields />
                         )}
                     </TabsContent>
-                )}
 
-                <TabsContent value="manual">
-                    <div className="mt-4">
-                            <ExpenseFields />
-                    </div>
-                </TabsContent>
-            </Tabs>
-        </form>
+                    {!isMobile && (
+                        <TabsContent value="camera">
+                            {!processedData ? (
+                                <div className="mt-4 space-y-4">
+                                    <div className="w-full bg-muted rounded-lg overflow-hidden flex items-center justify-center aspect-video">
+                                        <video ref={videoRef} className={cn("w-full h-full object-cover", { 'hidden': hasCameraPermission !== true })} autoPlay muted playsInline />
+                                        {hasCameraPermission === false && (
+                                             <div className="p-4">
+                                                <Alert variant="destructive">
+                                                    <AlertTitle>Camera Access Required</AlertTitle>
+                                                    <AlertDescription>
+                                                        Please allow camera access in your browser to use this feature. You may need to refresh the page.
+                                                    </AlertDescription>
+                                                </Alert>
+                                             </div>
+                                        )}
+                                        {hasCameraPermission === undefined && !isProcessing && (
+                                            <div className="flex flex-col items-center gap-2">
+                                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                                <p className="text-muted-foreground">Requesting camera...</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <Button type="button" className="w-full" onClick={handleCapture} disabled={!hasCameraPermission || isProcessing}>
+                                        <Camera className="mr-2 h-4 w-4" />
+                                        {isProcessing ? 'Capturing...' : 'Capture Photo'}
+                                    </Button>
+                                    <canvas ref={canvasRef} className="hidden"></canvas>
+                                </div>
+                            ) : (
+                                <ExpenseFields />
+                            )}
+                        </TabsContent>
+                    )}
+
+                    <TabsContent value="manual">
+                        <div className="mt-4">
+                                <ExpenseFields />
+                        </div>
+                    </TabsContent>
+                </Tabs>
+            </form>
+        </Form>
     );
 }

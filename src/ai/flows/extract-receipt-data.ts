@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { EXPENSE_CATEGORIES } from '@/lib/constants';
 
 const ExtractReceiptDataInputSchema = z.object({
   photoDataUri: z
@@ -26,6 +27,7 @@ const ExtractReceiptDataOutputSchema = z.object({
     date: z.string().optional().describe('The date of the purchase (YYYY-MM-DD).'),
     time: z.string().optional().describe('The time of the purchase (HH:MM).'),
     totalAmount: z.number().optional().describe('The total amount of the purchase.'),
+    category: z.enum(EXPENSE_CATEGORIES).optional().describe('The category of the expense. Must be one of the predefined categories.'),
     taxes: z.number().optional().describe('The amount of taxes included in the purchase.'),
     paymentMethod: z.string().optional().describe('The method of payment used (e.g., cash, credit card).'),
     subtotal: z.number().optional().describe('The subtotal amount of the purchase'),
@@ -56,7 +58,11 @@ Use the following as the primary source of information about the receipt.
 
 Photo: {{media url=photoDataUri}}
 
+For the expense 'category', you MUST choose one of the following predefined categories:
+{{JSON.stringify(EXPENSE_CATEGORIES)}}
+
 When extracting data from a valid receipt, pay close attention to the format requirements for each field. For the currency, you MUST return a three-letter ISO 4217 currency code (e.g., USD, EUR, JPY). It is critical that you do not use currency symbols like $ or €. Only use the three-letter code.
+
 
 For each line item, extract the name, quantity (if available), and the total amount for the item. The amount should be the total for that line (e.g., quantity multiplied by the unit price).
 
