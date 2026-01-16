@@ -2,64 +2,76 @@
 'use server';
 
 /**
- * @fileOverview This file defines a Genkit flow for automatically categorizing expenses.
+ * @fileOverview This file defines a function for automatically categorizing expenses using Groq AI.
  *
  * - categorizeExpense - A function that categorizes an expense based on its description and other information.
  * - CategorizeExpenseInput - The input type for the categorizeExpense function.
  * - CategorizeExpenseOutput - The return type for the categorizeExpense function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { groq, TEXT_MODEL, DEFAULT_SETTINGS } from '@/ai/groq';
 
-const CategorizeExpenseInputSchema = z.object({
-  description: z.string().describe('A detailed description of the expense.'),
-  vendor: z.string().describe('The name of the vendor or merchant.'),
-  amount: z.number().describe('The total amount of the expense.'),
-  date: z.string().describe('The date of the expense in ISO format (YYYY-MM-DD).'),
-});
-export type CategorizeExpenseInput = z.infer<typeof CategorizeExpenseInputSchema>;
-
-const CategorizeExpenseOutputSchema = z.object({
-  category: z.string().describe('The predicted category of the expense.'),
-  confidence: z.number().describe('The confidence level of the categorization (0-1).'),
-});
-export type CategorizeExpenseOutput = z.infer<typeof CategorizeExpenseOutputSchema>;
-
-export async function categorizeExpense(input: CategorizeExpenseInput): Promise<CategorizeExpenseOutput> {
-  return categorizeExpenseFlow(input);
+export interface CategorizeExpenseInput {
+  description: string;
+  vendor: string;
+  amount: number;
+  date: string;
 }
 
-const prompt = ai.definePrompt({
-  name: 'categorizeExpensePrompt',
-  input: {schema: CategorizeExpenseInputSchema},
-  output: {schema: CategorizeExpenseOutputSchema},
-  prompt: `You are an expert expense categorizer. Given the following information about an expense, determine the most appropriate category for it.
+export interface CategorizeExpenseOutput {
+  category: string;
+  confidence: number;
+}
 
-Description: {{{description}}}
-Vendor: {{{vendor}}}
-Amount: {{{amount}}}
-Date: {{{date}}}
+export async function categorizeExpense(input: CategorizeExpenseInput): Promise<CategorizeExpenseOutput> {
+  const prompt = `You are an expert expense categorizer. Given the following information about an expense, determine the most appropriate category for it.
 
-Respond with a category and a confidence level between 0 and 1.  Make sure that the category is a short noun, like "Groceries" or "Transportation".
+Description: ${input.description}
+Vendor: ${input.vendor}
+Amount: ${input.amount}
+Date: ${input.date}
 
-Return the category and confidence in JSON format. The category field should contain the category of the expense. The confidence field should be a number between 0 and 1 representing the confidence level. Only return a valid JSON object.
+Respond with a category and a confidence level between 0 and 1. Make sure that the category is a short noun, like "Groceries" or "Transportation".
+
+Return the category and confidence in JSON format. The category field should contain the category of the expense. The confidence field should be a number between 0 and 1 representing the confidence level. Only return a valid JSON object, no additional text.
 
 For example:
 {
   "category": "Groceries",
   "confidence": 0.95
-}`,
-});
+}`;
 
-const categorizeExpenseFlow = ai.defineFlow(
-  {
-    name: 'categorizeExpenseFlow',
-    inputSchema: CategorizeExpenseInputSchema,
-    outputSchema: CategorizeExpenseOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+  const chatCompletion = await groq.chat.completions.create({
+    messages: [
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ],
+    model: TEXT_MODEL,
+    temperature: DEFAULT_SETTINGS.temperature,
+    max_tokens: DEFAULT_SETTINGS.max_tokens,
+    top_p: DEFAULT_SETTINGS.top_p,
+  });
+
+  const responseText = chatCompletion.choices[0]?.message?.content || '';
+  
+  try {
+    // Extract JSON from the response (handle potential markdown code blocks)
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in response');
+    }
+    const result = JSON.parse(jsonMatch[0]) as CategorizeExpenseOutput;
+    return {
+      category: result.category || 'Uncategorized',
+      confidence: typeof result.confidence === 'number' ? result.confidence : 0.5,
+    };
+  } catch (error) {
+    console.error('Failed to parse AI response:', responseText, error);
+    return {
+      category: 'Uncategorized',
+      confidence: 0,
+    };
   }
-);
+}

@@ -36,7 +36,7 @@ A modern, intuitive budgeting application designed specifically for students to 
     - Firestore (database)
     - Authentication
     - Cloud Functions
-  - Genkit AI for receipt processing
+  - Groq AI (Llama 4 Scout) for receipt processing
   - PDFKit for report generation
 
 - **Development Tools**
@@ -67,7 +67,7 @@ A modern, intuitive budgeting application designed specifically for students to 
    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
    NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-   GEMINI_API_KEY=your_gemini_api_key
+   GROQ_API_KEY=your_groq_api_key
    ```
 
 4. **Run the development server**

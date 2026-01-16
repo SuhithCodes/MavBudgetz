@@ -40,8 +40,8 @@ const loginSchema = z.object({
 })
 
 const signupSchema = z.object({
-    email: z.string().email({ message: "Invalid email address." }),
-    password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  email: z.string().email({ message: "Invalid email address." }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
 });
 
 
@@ -95,12 +95,12 @@ function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem className="grid gap-2">
-                <div className="flex items-center">
-                    <FormLabel>Password</FormLabel>
-                    <Link href="#" className="ml-auto inline-block text-sm underline">
-                        Forgot your password?
-                    </Link>
-                </div>
+              <div className="flex items-center">
+                <FormLabel>Password</FormLabel>
+                <Link href="#" className="ml-auto inline-block text-sm underline">
+                  Forgot your password?
+                </Link>
+              </div>
               <FormControl>
                 <Input type="password" {...field} />
               </FormControl>
@@ -118,119 +118,119 @@ function LoginForm() {
 }
 
 function SignupForm() {
-    const router = useRouter();
-    const { toast } = useToast();
-    const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
-    const form = useForm<z.infer<typeof signupSchema>>({
-        resolver: zodResolver(signupSchema),
-        defaultValues: {
-        email: "",
-        password: "",
-        },
-    });
+  const form = useForm<z.infer<typeof signupSchema>>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
-    async function onSubmit(values: z.infer<typeof signupSchema>) {
-        setIsLoading(true);
-        try {
-            await createUserWithEmailAndPassword(auth, values.email, values.password);
-            router.push('/dashboard');
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Sign Up Failed',
-                description: error.message,
-            });
-        } finally {
-            setIsLoading(false);
-        }
+  async function onSubmit(values: z.infer<typeof signupSchema>) {
+    setIsLoading(true);
+    try {
+      await createUserWithEmailAndPassword(auth, values.email, values.password);
+      router.push('/dashboard');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Sign Up Failed',
+        description: error.message,
+      });
+    } finally {
+      setIsLoading(false);
     }
+  }
 
-    return (
-         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem className="grid gap-2">
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="m@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem className="grid gap-2">
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Account
-              </Button>
-            </form>
-          </Form>
-    )
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem className="grid gap-2">
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input placeholder="m@example.com" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem className="grid gap-2">
+              <FormLabel>Password</FormLabel>
+              <FormControl>
+                <Input type="password" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Create Account
+        </Button>
+      </form>
+    </Form>
+  )
 }
 
 
 export function AuthenticationPage() {
-    const router = useRouter();
-    const { toast } = useToast();
-    const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-    async function handleGoogleSignIn() {
-        setIsGoogleLoading(true);
-        const provider = new GoogleAuthProvider();
-        try {
-            await signInWithPopup(auth, provider);
-            router.push('/dashboard');
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Google Sign-In Failed',
-                description: error.message,
-            });
-        } finally {
-            setIsGoogleLoading(false);
-        }
+  async function handleGoogleSignIn() {
+    setIsGoogleLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      router.push('/dashboard');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Google Sign-In Failed',
+        description: error.message,
+      });
+    } finally {
+      setIsGoogleLoading(false);
     }
+  }
 
   return (
     <div className="w-full lg:grid lg:min-h-screen lg:grid-cols-2">
-        <div 
-          className="hidden bg-hero bg-cover lg:block"
-          style={{ backgroundPosition: '40% 40%', backgroundSize: '250%' }}
-        >
+      <div
+        className="hidden bg-hero bg-cover lg:block"
+        style={{ backgroundPosition: '40% 40%', backgroundSize: '250%' }}
+      >
         <div className="flex flex-col justify-center items-center h-full p-12 text-center bg-black bg-opacity-50 text-white">
-            <ReceiptText className="h-16 w-16 text-primary" />
-            <h1 className="mt-6 text-4xl font-bold">mavbudgetz</h1>
-            <p className="mt-4 text-lg">Smart expense tracking for modern professionals.</p>
-            <div className="mt-8 flex justify-center gap-6">
-                <Link href="https://www.linkedin.com/in/gsuhith" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
-                    <Linkedin className="h-6 w-6" />
-                    <span className="sr-only">LinkedIn</span>
-                </Link>
-                <Link href="https://github.com/SuhithCodes" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
-                    <Github className="h-6 w-6" />
-                    <span className="sr-only">GitHub</span>
-                </Link>
-                <Link href="https://suhithghanathay.vercel.app" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
-                    <Globe className="h-6 w-6" />
-                    <span className="sr-only">Portfolio</span>
-                </Link>
-            </div>
+          <ReceiptText className="h-16 w-16 text-primary" />
+          <h1 className="mt-6 text-4xl font-bold">BhaiBudget</h1>
+          <p className="mt-4 text-lg">Smart expense tracking for modern professionals.</p>
+          <div className="mt-8 flex justify-center gap-6">
+            <Link href="https://www.linkedin.com/in/gsuhith" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+              <Linkedin className="h-6 w-6" />
+              <span className="sr-only">LinkedIn</span>
+            </Link>
+            <Link href="https://github.com/SuhithCodes" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+              <Github className="h-6 w-6" />
+              <span className="sr-only">GitHub</span>
+            </Link>
+            <Link href="https://suhithghanathay.vercel.app" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+              <Globe className="h-6 w-6" />
+              <span className="sr-only">Portfolio</span>
+            </Link>
+          </div>
         </div>
       </div>
       <div className="flex items-center justify-center py-12">
@@ -249,22 +249,22 @@ export function AuthenticationPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <LoginForm />
+                  <LoginForm />
                 </CardContent>
               </Card>
             </TabsContent>
             <TabsContent value="signup">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-2xl">Sign Up</CardTitle>
-                        <CardDescription>
-                            Enter your information to create an account
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <SignupForm />
-                    </CardContent>
-                </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-2xl">Sign Up</CardTitle>
+                  <CardDescription>
+                    Enter your information to create an account
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <SignupForm />
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
           <div className="relative my-4">

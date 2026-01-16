@@ -1,5 +1,9 @@
 import { config } from 'dotenv';
 config();
 
-import '@/ai/flows/categorize-expenses.ts';
-import '@/ai/flows/extract-receipt-data.ts';
+// Import AI flows for use
+import '@/ai/flows/categorize-expenses';
+import '@/ai/flows/extract-receipt-data';
+
+// Export the Groq client for external use
+export { groq, TEXT_MODEL, VISION_MODEL, DEFAULT_SETTINGS } from '@/ai/groq';

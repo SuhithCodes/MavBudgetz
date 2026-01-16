@@ -73,18 +73,18 @@ export function Header() {
       <div className="container flex h-16 items-center">
         <Link href="/dashboard" className="mr-4 flex items-center">
           <ReceiptText className="h-7 w-7 text-primary" />
-          <span className="ml-3 font-bold font-headline text-xl">mavbudgetz</span>
+          <span className="ml-3 font-bold font-headline text-xl">BhaiBudget</span>
         </Link>
-          <div className="ml-2 hidden sm:flex items-center">
-            <div className="flex items-center gap-2 rounded-full border px-3 py-1.5 bg-background/60">
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Current Balance</span>
-              <span className={`text-sm font-semibold ${balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(balance)}</span>
-            </div>
+        <div className="ml-2 hidden sm:flex items-center">
+          <div className="flex items-center gap-2 rounded-full border px-3 py-1.5 bg-background/60">
+            <Wallet className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Current Balance</span>
+            <span className={`text-sm font-semibold ${balance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(balance)}</span>
           </div>
-          <div className="flex flex-1 items-center justify-end sm:space-x-2">
-            <div className="sm:hidden font-semibold text-sm pr-2">{formatCurrency(balance)}</div>
-            <ThemeToggle />
+        </div>
+        <div className="flex flex-1 items-center justify-end sm:space-x-2">
+          <div className="sm:hidden font-semibold text-sm pr-2">{formatCurrency(balance)}</div>
+          <ThemeToggle />
           <nav className="flex items-center space-x-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -109,7 +109,7 @@ export function Header() {
                       </p>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                     <DropdownMenuItem asChild>
+                    <DropdownMenuItem asChild>
                       <Link href="/dashboard">
                         <LayoutDashboard className="mr-2 h-4 w-4" />
                         <span>Dashboard</span>
@@ -122,10 +122,10 @@ export function Header() {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                        <Link href="/dashboard/savings-goals">
-                            <Star className="mr-2 h-4 w-4" />
-                            <span>Savings Goals</span>
-                        </Link>
+                      <Link href="/dashboard/savings-goals">
+                        <Star className="mr-2 h-4 w-4" />
+                        <span>Savings Goals</span>
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/dashboard/profile">

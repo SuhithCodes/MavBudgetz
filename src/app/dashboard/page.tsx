@@ -35,7 +35,7 @@ import { IncomeForm } from "@/components/income/income-form"
 import { type IncomeFormData, type Income } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 import { DateRange } from "react-day-picker"
-import { subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter } from "date-fns"
+import { subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, startOfDay, endOfDay } from "date-fns"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { ResponsiveSankey } from "@/components/dashboard/responsive-sankey"
 
@@ -143,11 +143,11 @@ export default function DashboardPage() {
         const now = new Date();
         switch (preset) {
             case 'today':
-                setDateRange({ from: now, to: now });
+                setDateRange({ from: startOfDay(now), to: endOfDay(now) });
                 break;
             case 'yesterday':
                 const yesterday = subDays(now, 1);
-                setDateRange({ from: yesterday, to: yesterday });
+                setDateRange({ from: startOfDay(yesterday), to: endOfDay(yesterday) });
                 break;
             case 'thisWeek':
                 setDateRange({ from: startOfWeek(now), to: endOfWeek(now) });
@@ -174,8 +174,8 @@ export default function DashboardPage() {
 
     const filteredExpenses = useMemo(() => {
         if (!dateRange?.from) return expenses;
-        const fromDate = dateRange.from;
-        const toDate = dateRange.to || dateRange.from; // If no 'to' date, use 'from' date for single day selection
+        const fromDate = startOfDay(dateRange.from);
+        const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from); // If no 'to' date, use 'from' date for single day selection
         return expenses.filter(expense => {
             const expenseDate = new Date(expense.date + 'T00:00:00');
             return expenseDate >= fromDate && expenseDate <= toDate;
@@ -184,8 +184,8 @@ export default function DashboardPage() {
 
     const filteredIncomes = useMemo(() => {
         if (!dateRange?.from) return incomes;
-        const fromDate = dateRange.from;
-        const toDate = dateRange.to || dateRange.from;
+        const fromDate = startOfDay(dateRange.from);
+        const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
         return incomes.filter(income => {
             const incomeDate = new Date(income.date + 'T00:00:00');
             return incomeDate >= fromDate && incomeDate <= toDate;
