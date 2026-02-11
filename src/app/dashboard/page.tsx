@@ -7,12 +7,12 @@ import { DashboardSummary } from "@/components/dashboard/dashboard-summary"
 import { SankeyDiagram, type SankeyData } from "@/components/dashboard/sankey-diagram";
 import { type Expense, type ExpenseFormData } from "@/types"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "@/components/ui/dialog"
 import {
     DropdownMenu,
@@ -57,8 +57,8 @@ export default function DashboardPage() {
         if (user) {
             setIsLoading(true);
             const qExpenses = query(
-                collection(db, "expenses"), 
-                where("userId", "==", user.uid), 
+                collection(db, "expenses"),
+                where("userId", "==", user.uid),
                 orderBy("date", "desc"),
             );
             const qIncomes = query(
@@ -93,12 +93,12 @@ export default function DashboardPage() {
             setIsLoading(false);
         }
     }, [user]);
-    
+
     const recentExpenses = useMemo(() => expenses.slice(0, 5), [expenses]);
 
     const handleExpenseAdded = async (newExpenseData: ExpenseFormData) => {
         if (!user) return;
-        
+
         try {
             const expenseWithUser = { ...newExpenseData, userId: user.uid };
             await addDoc(collection(db, "expenses"), expenseWithUser);
@@ -107,7 +107,7 @@ export default function DashboardPage() {
             console.error("Error adding expense: ", error);
         }
     };
-    
+
     const handleIncomeAdded = async (newIncomeData: IncomeFormData) => {
         if (!user) return;
         try {
@@ -118,7 +118,7 @@ export default function DashboardPage() {
             console.error("Error adding income: ", error);
         }
     };
-    
+
     const handleExpenseDeleted = async (expenseId: string) => {
         try {
             await deleteExpense(expenseId);
@@ -193,40 +193,32 @@ export default function DashboardPage() {
     }, [incomes, dateRange]);
 
     const sankeyData = useMemo((): SankeyData => {
-        const PARENT_CATEGORIES = {
+        const PARENT_CATEGORIES: Record<string, string[]> = {
             'Needs': ["Housing", "Transportation", "Food", "Utilities", "Healthcare"],
             'Wants': ["Personal Care", "Entertainment", "Shopping"],
             'Financial Goals': ["Debt Payments", "Savings & Investments"],
             'Other': ["Miscellaneous"]
         };
 
-        const nodes: { nodeId: string; name: string }[] = [];
-        const links: { source: string; target: string; value: number }[] = [];
-
-        const totalIncome = filteredIncomes.reduce((acc, income) => acc + income.amount, 0);
-
-        if (totalIncome > 0) {
-            nodes.push({ nodeId: "total-income", name: "Total Income" });
-
-            const incomeBySource: { [key: string]: number } = {};
-            filteredIncomes.forEach(income => {
-                const source = income.sourceName || 'Other Income';
-                if (incomeBySource[source]) {
-                    incomeBySource[source] += income.amount;
-                } else {
-                    incomeBySource[source] = income.amount;
-                }
-            });
-
-            for (const source in incomeBySource) {
-                nodes.push({ nodeId: source, name: source });
-                links.push({ source: source, target: "total-income", value: incomeBySource[source] });
+        // Build a reverse lookup: child category → parent category
+        const childToParent: Record<string, string> = {};
+        for (const parent in PARENT_CATEGORIES) {
+            for (const child of PARENT_CATEGORIES[parent]) {
+                childToParent[child] = parent;
             }
         }
 
+        const nodes: { nodeId: string; name: string }[] = [];
+        const links: { source: string; target: string; value: number }[] = [];
+
+        // --- Income side ---
+        const totalIncome = filteredIncomes.reduce((acc, income) => acc + (income.amount ?? 0), 0);
+
+        // FIX #5: Use ?? instead of || so that 0-value expenses aren't dropped
         const expenseByCategory: { [key: string]: number } = {};
         filteredExpenses.forEach(expense => {
-            const amount = expense.totalAmount || 0;
+            const amount = expense.totalAmount ?? 0;
+            if (amount <= 0) return;
             if (expenseByCategory[expense.category]) {
                 expenseByCategory[expense.category] += amount;
             } else {
@@ -234,47 +226,94 @@ export default function DashboardPage() {
             }
         });
 
+        const totalExpenses = Object.values(expenseByCategory).reduce((acc, a) => acc + a, 0);
+
+        // FIX #2: Always create the central node when there's any data
+        if (totalIncome === 0 && totalExpenses === 0) {
+            return { nodes: [], links: [] };
+        }
+
+        // FIX #4: Prefix all node IDs to prevent collisions between income sources,
+        // parent categories, child categories, and special nodes.
+        const CENTRAL_ID = "central-budget";
+        nodes.push({ nodeId: CENTRAL_ID, name: "Total Income" });
+
+        // Income sources → Central node
+        if (totalIncome > 0) {
+            const incomeBySource: { [key: string]: number } = {};
+            filteredIncomes.forEach(income => {
+                const source = income.sourceName || 'Other Income';
+                incomeBySource[source] = (incomeBySource[source] || 0) + (income.amount ?? 0);
+            });
+
+            for (const source in incomeBySource) {
+                const nodeId = `inc-${source}`;
+                nodes.push({ nodeId, name: source });
+                links.push({ source: nodeId, target: CENTRAL_ID, value: incomeBySource[source] });
+            }
+        }
+
+        // FIX #1: If expenses > income, add a deficit node to balance the flows
+        if (totalExpenses > totalIncome) {
+            const deficit = totalExpenses - totalIncome;
+            const deficitId = "special-deficit";
+            nodes.push({ nodeId: deficitId, name: "Deficit" });
+            links.push({ source: deficitId, target: CENTRAL_ID, value: deficit });
+        }
+
+        // FIX #3: Route uncategorized expenses into "Other"
+        for (const category in expenseByCategory) {
+            if (!childToParent[category]) {
+                if (!PARENT_CATEGORIES['Other'].includes(category)) {
+                    PARENT_CATEGORIES['Other'].push(category);
+                    childToParent[category] = 'Other';
+                }
+            }
+        }
+
+        // Central node → Parent categories → Child categories
         const parentCategoryTotals: { [key: string]: number } = {};
         for (const parent in PARENT_CATEGORIES) {
             parentCategoryTotals[parent] = 0;
-            for (const child of PARENT_CATEGORIES[parent as keyof typeof PARENT_CATEGORIES]) {
+            for (const child of PARENT_CATEGORIES[parent]) {
                 if (expenseByCategory[child]) {
                     parentCategoryTotals[parent] += expenseByCategory[child];
                 }
             }
         }
-        
+
         for (const parent in parentCategoryTotals) {
             if (parentCategoryTotals[parent] > 0) {
-                nodes.push({ nodeId: parent, name: parent });
-                links.push({ source: "total-income", target: parent, value: parentCategoryTotals[parent] });
+                const parentId = `parent-${parent}`;
+                nodes.push({ nodeId: parentId, name: parent });
+                links.push({ source: CENTRAL_ID, target: parentId, value: parentCategoryTotals[parent] });
 
-                for (const child of PARENT_CATEGORIES[parent as keyof typeof PARENT_CATEGORIES]) {
+                for (const child of PARENT_CATEGORIES[parent]) {
                     if (expenseByCategory[child]) {
-                        nodes.push({ nodeId: child, name: child });
-                        links.push({ source: parent, target: child, value: expenseByCategory[child] });
+                        const childId = `cat-${child}`;
+                        nodes.push({ nodeId: childId, name: child });
+                        links.push({ source: parentId, target: childId, value: expenseByCategory[child] });
                     }
                 }
             }
         }
-        
-        const totalExpenses = Object.values(expenseByCategory).reduce((acc, amount) => acc + amount, 0);
-        const savings = totalIncome - totalExpenses;
-        
-        if (savings > 0) {
-            nodes.push({ nodeId: "Savings", name: "Savings" });
-            links.push({ source: "total-income", target: "Savings", value: savings });
-        }
-        
-        const uniqueNodes = Array.from(new Map(nodes.map(item => [item.nodeId, item])).values());
 
-        return { nodes: uniqueNodes, links };
+        // FIX #6: Rename computed savings to "Unspent Income" to differentiate
+        // from the "Savings & Investments" expense category
+        const unspent = totalIncome - totalExpenses;
+        if (unspent > 0) {
+            const unspentId = "special-unspent";
+            nodes.push({ nodeId: unspentId, name: "Unspent Income" });
+            links.push({ source: CENTRAL_ID, target: unspentId, value: unspent });
+        }
+
+        return { nodes, links };
     }, [filteredIncomes, filteredExpenses]);
 
     if (isLoading) {
         return (
-             <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 container mx-auto">
-                 <div className="flex items-center justify-between">
+            <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 container mx-auto">
+                <div className="flex items-center justify-between">
                     <Skeleton className="h-10 w-48" />
                     <Skeleton className="h-10 w-36" />
                 </div>
@@ -289,7 +328,7 @@ export default function DashboardPage() {
                         <Skeleton className="h-80" />
                     </div>
                 </div>
-             </main>
+            </main>
         )
     }
 
@@ -337,7 +376,7 @@ export default function DashboardPage() {
             <div className="grid gap-8">
                 <DashboardSummary expenses={expenses} incomes={incomes} />
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
-                     <div className="lg:col-span-3">
+                    <div className="lg:col-span-3">
                         <Card>
                             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                 <CardTitle>Financial Flow</CardTitle>
@@ -374,7 +413,7 @@ export default function DashboardPage() {
                         </Card>
                     </div>
                     <div className="lg:col-span-2">
-                        <ExpenseList 
+                        <ExpenseList
                             expenses={recentExpenses}
                             onExpenseDeleted={handleExpenseDeleted}
                             onExpenseUpdated={handleExpenseUpdated}
